@@ -146,10 +146,15 @@ def suggest_property_matches(payments):
         
         # Add property suggestion to payment
         if matched_property:
+            owner = matched_property.get_owner()
+            owner_name = "No owner assigned"
+            if owner is not None:
+                owner_name = owner.name
+                
             payment['suggested_property'] = {
                 'id': matched_property.id,
                 'unit_number': matched_property.unit_number,
-                'owner': matched_property.get_owner().name if matched_property.get_owner() else "No owner assigned",
+                'owner': owner_name,
                 'confidence': match_confidence
             }
         else:
@@ -163,29 +168,44 @@ def suggest_fee_matches(payments):
     Adds fee suggestions to payment dictionaries.
     """
     for payment in payments:
-        if not payment.get('suggested_property'):
-            payment['suggested_fee'] = None
+        # Initialize with None as default
+        payment['suggested_fee'] = None
+        
+        # Skip if no suggested property
+        suggested_property = payment.get('suggested_property')
+        if not suggested_property:
             continue
         
-        property_id = payment['suggested_property']['id']
+        # Get property ID (safely)
+        property_id = suggested_property.get('id')
+        if not property_id:
+            continue
         
         # Get unpaid fees for this property, ordered by date (oldest first)
-        unpaid_fees = Fee.query.filter_by(
-            property_id=property_id,
-            paid=False
-        ).order_by(Fee.date.asc()).all()
+        try:
+            unpaid_fees = Fee.query.filter_by(
+                property_id=property_id,
+                paid=False
+            ).order_by(Fee.date.asc()).all()
+        except Exception:
+            # If any database error occurs, skip
+            continue
         
         # Try to find a matching fee by amount
         matching_fee = None
         for fee in unpaid_fees:
-            # Exact match
-            if abs(fee.amount - payment['amount']) < 0.01:
-                matching_fee = fee
-                break
-            # Close match (within 5%)
-            elif abs(fee.amount - payment['amount']) / fee.amount < 0.05:
-                matching_fee = fee
-                break
+            try:
+                # Exact match
+                if abs(fee.amount - payment['amount']) < 0.01:
+                    matching_fee = fee
+                    break
+                # Close match (within 5%)
+                elif abs(fee.amount - payment['amount']) / fee.amount < 0.05:
+                    matching_fee = fee
+                    break
+            except (TypeError, ValueError, ZeroDivisionError):
+                # Skip this fee if there's any calculation error
+                continue
         
         # If no fee matches by amount, suggest the oldest unpaid fee
         if not matching_fee and unpaid_fees:
@@ -193,14 +213,16 @@ def suggest_fee_matches(payments):
         
         # Add fee suggestion to payment
         if matching_fee:
-            payment['suggested_fee'] = {
-                'id': matching_fee.id,
-                'amount': matching_fee.amount,
-                'period': matching_fee.period,
-                'exact_match': abs(matching_fee.amount - payment['amount']) < 0.01
-            }
-        else:
-            payment['suggested_fee'] = None
+            try:
+                payment['suggested_fee'] = {
+                    'id': matching_fee.id,
+                    'amount': matching_fee.amount,
+                    'period': matching_fee.period,
+                    'exact_match': abs(matching_fee.amount - payment['amount']) < 0.01
+                }
+            except Exception:
+                # If any error occurs while creating the suggestion dict, skip
+                payment['suggested_fee'] = None
     
     return payments
 

@@ -87,8 +87,8 @@ def reconciliation():
                                 'reference': payment['reference'],
                                 'transaction_id': payment['transaction_id'],
                                 'is_duplicate': payment.get('is_duplicate', False),
-                                'suggested_property_id': payment.get('suggested_property', {}).get('id'),
-                                'suggested_fee_id': payment.get('suggested_fee', {}).get('id')
+                                'suggested_property_id': payment.get('suggested_property', {}).get('id') if payment.get('suggested_property') else None,
+                                'suggested_fee_id': payment.get('suggested_fee', {}).get('id') if payment.get('suggested_fee') else None
                             }
                             for payment in analyzed_payments
                         ]
