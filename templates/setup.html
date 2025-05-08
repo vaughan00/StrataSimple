@@ -98,8 +98,8 @@
     <div class="card-body">
         {% if properties %}
         <div class="table-responsive">
-            <table class="table table-hover" id="properties-table">
-                <thead>
+            <table class="table table-dark table-striped table-hover" id="properties-table">
+                <thead class="table-dark">
                     <tr>
                         <th>Unit</th>
                         <th>Description</th>
@@ -118,13 +118,10 @@
                             ${{ "%.2f"|format(property.balance) }}
                         </td>
                         <td>
-                            <a href="#" class="btn btn-sm btn-primary edit-property-btn" 
-                                    data-id="{{ property.id }}"
-                                    data-unit-number="{{ property.unit_number }}"
-                                    data-description="{{ property.description or '' }}"
-                                    data-entitlement="{{ property.entitlement }}">
-                                <i class="fas fa-edit me-1"></i>Edit
-                            </a>
+                            <button type="button" class="btn btn-sm btn-primary edit-property-btn" 
+                                   onclick="editProperty('{{ property.id }}', '{{ property.unit_number }}', '{{ property.description or '' }}', '{{ property.entitlement }}')">
+                               <i class="fas fa-edit"></i> Edit
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -168,6 +165,36 @@
 
 {% block scripts %}
 <script>
+// Global function for handling property editing
+function editProperty(id, unitNumber, description, entitlement) {
+    const propertyForm = document.getElementById('property-form');
+    const propertyAction = document.getElementById('property-action');
+    const propertyId = document.getElementById('property-id');
+    const unitNumberInput = document.getElementById('unit_number');
+    const descriptionInput = document.getElementById('description');
+    const entitlementInput = document.getElementById('entitlement');
+    const propertyFormTitle = document.getElementById('property-form-title');
+    const propertySubmitBtn = document.getElementById('property-submit-btn');
+    const editControls = document.getElementById('edit-controls');
+    const deletePropertyId = document.getElementById('delete-property-id');
+    
+    // Set form to edit mode
+    propertyAction.value = 'edit_property';
+    propertyId.value = id;
+    unitNumberInput.value = unitNumber;
+    descriptionInput.value = description;
+    entitlementInput.value = entitlement;
+    
+    // Update UI for edit mode
+    propertyFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Property';
+    propertySubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+    editControls.style.display = 'block';
+    deletePropertyId.value = id;
+    
+    // Scroll to form
+    propertyForm.scrollIntoView({behavior: 'smooth'});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Property edit functionality
     const propertyForm = document.getElementById('property-form');
@@ -180,35 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const propertySubmitBtn = document.getElementById('property-submit-btn');
     const editControls = document.getElementById('edit-controls');
     const cancelEditBtn = document.getElementById('cancel-edit-btn');
-    const deletePropertyBtn = document.getElementById('delete-property-btn');
-    const deletePropertyId = document.getElementById('delete-property-id');
-    
-    // Add event listeners to all edit buttons
-    const editButtons = document.querySelectorAll('.edit-property-btn');
-    editButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            const unitNumber = this.getAttribute('data-unit-number');
-            const description = this.getAttribute('data-description');
-            const entitlement = this.getAttribute('data-entitlement');
-            
-            // Set form to edit mode
-            propertyAction.value = 'edit_property';
-            propertyId.value = id;
-            unitNumberInput.value = unitNumber;
-            descriptionInput.value = description;
-            entitlementInput.value = entitlement;
-            
-            // Update UI for edit mode
-            propertyFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Property';
-            propertySubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
-            editControls.style.display = 'block';
-            deletePropertyId.value = id;
-            
-            // Scroll to form
-            propertyForm.scrollIntoView({behavior: 'smooth'});
-        });
-    });
     
     // Reset form to add mode
     function resetForm() {
@@ -228,20 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Initialize Tabulator for properties table if there are properties
-    if (document.getElementById('properties-table')) {
-        new Tabulator("#properties-table", {
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: "local",
-            paginationSize: 10,
-            paginationSizeSelector: [5, 10, 25, 50],
-            movableColumns: true,
-            initialSort: [
-                {column: "unit_number", dir: "asc"}
-            ]
-        });
-    }
+    // Using native Bootstrap for tables instead of Tabulator for better compatibility
+    // The table has direct styling via Bootstrap classes
 });
 </script>
 {% endblock %}

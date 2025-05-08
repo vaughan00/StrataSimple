@@ -85,8 +85,29 @@
                         <p>{{ period.description }}</p>
                         {% endif %}
                         <div class="fees-table-container" data-period-id="{{ period.id }}">
-                            <!-- Tabulator table will be initialized here -->
-                            <div id="feesTable{{ period.id }}" class="fees-table"></div>
+                            <div class="table-responsive mt-3">
+                                <table class="table table-dark table-striped table-hover fees-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Unit</th>
+                                            <th>Owner</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="feesTable{{ period.id }}Body">
+                                        <!-- Fees will be loaded here via JavaScript -->
+                                        <tr>
+                                            <td colspan="5" class="text-center">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -111,7 +132,7 @@
     <div class="card-body">
         <p class="mb-3">These entitlements are used to calculate how fees are distributed among properties.</p>
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-dark table-striped table-hover">
                 <thead>
                     <tr>
                         <th>Unit</th>

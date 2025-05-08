@@ -128,7 +128,34 @@
     </div>
     <div class="card-body">
         {% if contacts %}
-        <div id="contactsTable"></div>
+        <div class="table-responsive">
+            <table class="table table-dark table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                    <tr>
+                        <td>{{ contact.name }}</td>
+                        <td>{{ contact.email or '' }}</td>
+                        <td>{{ contact.phone or '' }}</td>
+                        <td>{% if contact.is_owner %}<span class="badge bg-primary">Owner</span>{% else %}<span class="badge bg-secondary">Contact</span>{% endif %}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="editContact('{{ contact.id }}','{{ contact.name }}','{{ contact.email or '' }}','{{ contact.phone or '' }}','{{ contact.is_owner }}','{{ contact.notes or '' }}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="text-center py-4">
             <i class="fas fa-users fa-3x mb-3 text-muted"></i>
@@ -225,6 +252,40 @@
 
 {% block scripts %}
 <script>
+// Global edit contact function
+function editContact(id, name, email, phone, isOwner, notes) {
+    const contactForm = document.getElementById('contact-form');
+    const contactAction = document.getElementById('contact-action');
+    const contactId = document.getElementById('contact-id');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const isOwnerInput = document.getElementById('is_owner');
+    const notesInput = document.getElementById('notes');
+    const contactFormTitle = document.getElementById('contact-form-title');
+    const contactSubmitBtn = document.getElementById('contact-submit-btn');
+    const editControls = document.getElementById('edit-controls');
+    const deleteContactId = document.getElementById('delete-contact-id');
+    
+    // Set form to edit mode
+    contactAction.value = 'edit_contact';
+    contactId.value = id;
+    nameInput.value = name;
+    emailInput.value = email || '';
+    phoneInput.value = phone || '';
+    isOwnerInput.checked = isOwner === 'True';
+    notesInput.value = notes || '';
+    
+    // Update UI for edit mode
+    contactFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Contact';
+    contactSubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+    editControls.style.display = 'block';
+    deleteContactId.value = id;
+    
+    // Scroll to form
+    contactForm.scrollIntoView({behavior: 'smooth'});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Contact edit functionality
     const contactForm = document.getElementById('contact-form');
