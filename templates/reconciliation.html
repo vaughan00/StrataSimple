@@ -2,6 +2,43 @@
 
 {% block head %}
 <title>Reconciliation - Strata Finance Manager</title>
+<style>
+    .payment-table th, .payment-table td {
+        vertical-align: middle;
+    }
+    .match-confidence-high {
+        background-color: rgba(40, 167, 69, 0.2);
+    }
+    .match-confidence-medium {
+        background-color: rgba(255, 193, 7, 0.2);
+    }
+    .match-warning {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .filter-buttons {
+        margin-bottom: 1rem;
+    }
+    .suggested-match {
+        font-weight: bold;
+        color: #28a745;
+    }
+    .fee-match {
+        font-weight: bold;
+        color: #007bff;
+    }
+    .badge-duplicate {
+        background-color: #dc3545;
+        color: white;
+    }
+    .row-excluded {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+    .property-select, .fee-select {
+        max-width: 250px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -22,10 +59,10 @@
             <div class="mb-3">
                 <label for="file" class="form-label">CSV File</label>
                 <input class="form-control" type="file" id="file" name="file" accept=".csv" required>
-                <div class="form-text">Upload a CSV export of your bank statement. The system will attempt to match payments to properties.</div>
+                <div class="form-text">Upload a CSV export of your bank statement. The system will analyze transactions and suggest matches.</div>
             </div>
             <div class="alert alert-info" role="alert">
-                <i class="fas fa-info-circle me-2"></i> The system will look for property unit numbers or owner names in the payment reference or description to match payments.
+                <i class="fas fa-info-circle me-2"></i> The system will look for property unit numbers or owner names in the payment reference or description to suggest matches. You will need to confirm each match.
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-upload me-2"></i>Upload and Process
@@ -34,77 +71,163 @@
     </div>
 </div>
 
-{% if matched_payments %}
-<!-- Matched Payments Card -->
+{% if transactions %}
+<!-- Transaction Matching Card -->
+<div class="card mb-4">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-exchange-alt me-2"></i>Transaction Matching
+            <span class="badge bg-light text-dark ms-2">{{ transactions|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="filter-buttons mb-3">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary active" data-filter="all">All Transactions</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="unmatched">Unmatched Only</button>
+                <button type="button" class="btn btn-outline-primary" data-filter="duplicates">Potential Duplicates</button>
+            </div>
+        </div>
+        
+        <form method="POST" id="confirm-form">
+            <input type="hidden" name="action" value="confirm_matches">
+            
+            <div class="table-responsive">
+                <table class="table table-hover payment-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Description</th>
+                            <th>Property</th>
+                            <th>Fee</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in transactions %}
+                        <tr data-duplicate="{{ payment.is_duplicate|lower }}" data-suggested="{{ (payment.suggested_property is not none)|lower }}" 
+                            class="{% if payment.is_duplicate %}table-danger{% elif payment.suggested_property %}{% if payment.suggested_property.confidence > 80 %}match-confidence-high{% elif payment.suggested_property.confidence > 50 %}match-confidence-medium{% endif %}{% endif %}">
+                            
+                            <input type="hidden" name="transaction_id" value="{{ payment.transaction_id }}">
+                            <input type="hidden" name="date" value="{{ payment.date.strftime('%Y-%m-%d') }}">
+                            <input type="hidden" name="amount" value="{{ payment.amount }}">
+                            <input type="hidden" name="description" value="{{ payment.description }}">
+                            <input type="hidden" name="reference" value="{{ payment.reference }}">
+                            
+                            <td>{{ payment.date.strftime('%d %b %Y') }}</td>
+                            <td>${{ "%.2f"|format(payment.amount) }}</td>
+                            <td>
+                                {% if payment.is_duplicate %}
+                                <span class="badge badge-duplicate me-2">Possible Duplicate</span>
+                                {% endif %}
+                                <strong>{{ payment.reference }}</strong>
+                                {% if payment.description and payment.description != payment.reference %}
+                                <br><small class="text-muted">{{ payment.description }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select class="form-select property-select" name="property_id" {% if payment.is_duplicate %}disabled{% endif %}>
+                                    <option value="">-- Select Property --</option>
+                                    {% for property in properties %}
+                                    <option value="{{ property.id }}" 
+                                        {% if payment.suggested_property and payment.suggested_property.id == property.id %}selected{% endif %}>
+                                        {{ property.unit_number }}
+                                        {% if property.get_owner() %}
+                                        ({{ property.get_owner().name }})
+                                        {% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if payment.suggested_property %}
+                                <small class="d-block mt-1 suggested-match">
+                                    <i class="fas fa-check-circle me-1"></i>Suggested match: {{ payment.suggested_property.unit_number }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select class="form-select fee-select" name="fee_id" {% if payment.is_duplicate %}disabled{% endif %}>
+                                    <option value="">-- No Fee --</option>
+                                    {% for fee in unpaid_fees %}
+                                    {% if payment.suggested_property and fee.property_id == payment.suggested_property.id %}
+                                    <option value="{{ fee.id }}" 
+                                        {% if payment.suggested_fee and payment.suggested_fee.id == fee.id %}selected{% endif %}>
+                                        {{ fee.period }} - ${{ "%.2f"|format(fee.amount) }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if payment.suggested_fee %}
+                                <small class="d-block mt-1 fee-match">
+                                    <i class="fas fa-check-circle me-1"></i>{{ payment.suggested_fee.period }} 
+                                    (${{ "%.2f"|format(payment.suggested_fee.amount) }})
+                                    {% if payment.suggested_fee.exact_match %}
+                                    <span class="badge bg-success">Exact Match</span>
+                                    {% endif %}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input exclude-check" type="checkbox" name="exclude" value="{{ loop.index0 }}" 
+                                        {% if payment.is_duplicate %}checked{% endif %}>
+                                    <label class="form-check-label">Exclude</label>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>Confirm Matches and Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% elif recently_confirmed %}
+<!-- Recently Confirmed Payments -->
 <div class="card mb-4">
     <div class="card-header bg-success text-white">
         <h5 class="mb-0">
-            <i class="fas fa-check-circle me-2"></i>Matched Payments
-            <span class="badge bg-light text-dark ms-2">{{ matched_payments|length }}</span>
+            <i class="fas fa-check-circle me-2"></i>Recently Confirmed Payments
+            <span class="badge bg-light text-dark ms-2">{{ recently_confirmed|length }}</span>
         </h5>
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
-                <thead>
+                <thead class="table-dark">
                     <tr>
                         <th>Date</th>
                         <th>Property</th>
-                        <th>Owner</th>
                         <th>Amount</th>
                         <th>Reference</th>
+                        <th>Fee</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for payment in matched_payments %}
+                    {% for payment in recently_confirmed %}
                     <tr>
                         <td>{{ payment.date.strftime('%d %b %Y') }}</td>
-                        <td>Unit {{ payment.unit_number }}</td>
-                        <td>{{ payment.owner_name }}</td>
+                        <td>
+                            {% if payment.property %}
+                            {{ payment.property.unit_number }}
+                            {% else %}
+                            <em>Unknown</em>
+                            {% endif %}
+                        </td>
                         <td class="text-success">${{ "%.2f"|format(payment.amount) }}</td>
                         <td>{{ payment.reference }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{% if unmatched_payments %}
-<!-- Unmatched Payments Card -->
-<div class="card mb-4">
-    <div class="card-header bg-warning">
-        <h5 class="mb-0">
-            <i class="fas fa-exclamation-triangle me-2"></i>Unmatched Payments
-            <span class="badge bg-light text-dark ms-2">{{ unmatched_payments|length }}</span>
-        </h5>
-    </div>
-    <div class="card-body">
-        <p class="mb-3">These payments could not be automatically matched to any property. You may need to manually associate them.</p>
-        <div class="table-responsive">
-            <table class="table table-hover" id="unmatched-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Description</th>
-                        <th>Reference</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for payment in unmatched_payments %}
-                    <tr>
-                        <td>{{ payment.date.strftime('%d %b %Y') }}</td>
-                        <td>${{ "%.2f"|format(payment.amount) }}</td>
-                        <td>{{ payment.description }}</td>
-                        <td>{{ payment.reference }}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary manual-match-btn" data-bs-toggle="modal" data-bs-target="#matchModal" data-payment-index="{{ loop.index0 }}">
-                                <i class="fas fa-link me-1"></i>Match
-                            </button>
+                            {% if payment.fee %}
+                            {{ payment.fee.period }} (${{ "%.2f"|format(payment.fee.amount) }})
+                            {% else %}
+                            <em>No Fee</em>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -113,49 +236,104 @@
         </div>
     </div>
 </div>
-
-<!-- Manual Match Modal -->
-<div class="modal fade" id="matchModal" tabindex="-1" aria-labelledby="matchModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="matchModalLabel">Match Payment to Property</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="manual-match-form">
-                    <input type="hidden" id="payment-index" name="payment-index">
-                    <div class="mb-3">
-                        <label for="property-select" class="form-label">Select Property</label>
-                        <select class="form-select" id="property-select" required>
-                            <option value="" selected disabled>Choose a property...</option>
-                            <!-- This will be populated by JS -->
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Payment Details</label>
-                        <div class="card">
-                            <div class="card-body">
-                                <p class="mb-1"><strong>Date:</strong> <span id="modal-payment-date"></span></p>
-                                <p class="mb-1"><strong>Amount:</strong> <span id="modal-payment-amount"></span></p>
-                                <p class="mb-1"><strong>Reference:</strong> <span id="modal-payment-reference"></span></p>
-                                <p class="mb-0"><strong>Description:</strong> <span id="modal-payment-description"></span></p>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm-match-btn">Confirm Match</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endif %}
-
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/reconciliation.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle filter buttons
+    const filterButtons = document.querySelectorAll('.filter-buttons button');
+    const rows = document.querySelectorAll('.payment-table tbody tr');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const filter = this.getAttribute('data-filter');
+            
+            // Apply filter
+            rows.forEach(row => {
+                // Default show
+                row.style.display = 'table-row';
+                
+                if (filter === 'unmatched' && row.getAttribute('data-suggested') === 'true') {
+                    row.style.display = 'none';
+                } else if (filter === 'duplicates' && row.getAttribute('data-duplicate') !== 'true') {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    // Handle property select changes
+    const propertySelects = document.querySelectorAll('.property-select');
+    propertySelects.forEach(select => {
+        select.addEventListener('change', function() {
+            // Get the closest row
+            const row = this.closest('tr');
+            // Get the fee select in the same row
+            const feeSelect = row.querySelector('.fee-select');
+            
+            // Clear and disable fee select if no property selected
+            if (!this.value) {
+                feeSelect.innerHTML = '<option value="">-- No Fee --</option>';
+                feeSelect.disabled = true;
+                return;
+            }
+            
+            // Enable fee select
+            feeSelect.disabled = false;
+            
+            // Find all fees for this property
+            const propertyId = parseInt(this.value);
+            const fees = Array.from(document.querySelectorAll(`option[data-property-id="${propertyId}"]`));
+            
+            // Build options
+            let options = '<option value="">-- No Fee --</option>';
+            
+            // Group fees by property
+            {% for property in properties %}
+            if (propertyId === {{ property.id }}) {
+                {% for fee in unpaid_fees %}
+                {% if fee.property_id == property.id %}
+                options += `<option value="{{ fee.id }}">{{ fee.period }} - ${{ "%.2f"|format(fee.amount) }}</option>`;
+                {% endif %}
+                {% endfor %}
+            }
+            {% endfor %}
+            
+            // Update fee select
+            feeSelect.innerHTML = options;
+        });
+    });
+    
+    // Handle exclude checkboxes
+    const excludeChecks = document.querySelectorAll('.exclude-check');
+    excludeChecks.forEach(check => {
+        check.addEventListener('change', function() {
+            const row = this.closest('tr');
+            const selects = row.querySelectorAll('select');
+            
+            if (this.checked) {
+                row.classList.add('row-excluded');
+                selects.forEach(select => select.disabled = true);
+            } else {
+                row.classList.remove('row-excluded');
+                selects.forEach(select => select.disabled = false);
+            }
+        });
+        
+        // Initial state
+        if (check.checked) {
+            const row = check.closest('tr');
+            row.classList.add('row-excluded');
+        }
+    });
+});
+</script>
 {% endblock %}
