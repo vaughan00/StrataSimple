@@ -40,20 +40,44 @@
 }
 
 .tabulator-row {
-    background-color: transparent;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: rgba(30, 30, 30, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .tabulator-row.tabulator-row-even {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(50, 50, 50, 0.8);
 }
 
 .tabulator-row.tabulator-selectable:hover {
-    background-color: rgba(0, 123, 255, 0.1);
+    background-color: rgba(13, 110, 253, 0.2);
 }
 
 .tabulator-row .tabulator-cell {
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Regular tables (Bootstrap) */
+.table {
+    --bs-table-color: #fff;
+    --bs-table-striped-color: #fff;
+    --bs-table-active-color: #fff;
+    --bs-table-hover-color: #fff;
+    
+    --bs-table-bg: rgba(30, 30, 30, 0.8);
+    --bs-table-striped-bg: rgba(50, 50, 50, 0.8);
+    --bs-table-active-bg: rgba(13, 110, 253, 0.2);
+    --bs-table-hover-bg: rgba(13, 110, 253, 0.15);
+}
+
+.table > :not(caption) > * > * {
+    background-color: var(--bs-table-bg);
+    border-bottom-width: 1px;
+    box-shadow: inset 0 0 0 9999px var(--bs-table-accent-bg);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+    color: #fff !important;
 }
 
 /* Custom footer styling */

@@ -118,13 +118,13 @@
                             ${{ "%.2f"|format(property.balance) }}
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary edit-property-btn" 
+                            <a href="#" class="btn btn-sm btn-primary edit-property-btn" 
                                     data-id="{{ property.id }}"
                                     data-unit-number="{{ property.unit_number }}"
                                     data-description="{{ property.description or '' }}"
                                     data-entitlement="{{ property.entitlement }}">
                                 <i class="fas fa-edit me-1"></i>Edit
-                            </button>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
