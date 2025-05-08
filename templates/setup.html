@@ -12,7 +12,8 @@
     </div>
 </div>
 
-<!-- Bulk Add Properties -->
+<!-- Bulk Add Properties - Only shown if no properties exist -->
+{% if not properties %}
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">
@@ -42,6 +43,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <!-- Add/Edit Property -->
 <div class="card mb-4">
