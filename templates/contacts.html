@@ -405,87 +405,107 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Property contacts accordion - using click event instead of bootstrap event
-    const accordionButtons = document.querySelectorAll('.accordion-button');
-    accordionButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            // Get the collapse target ID
-            const collapseId = this.getAttribute('data-bs-target').replace('#', '');
-            const collapse = document.getElementById(collapseId);
-            
-            // Only proceed if the accordion is opening (not closing)
-            if (this.classList.contains('collapsed')) {
-                // Wait a small amount of time for Bootstrap to open the accordion
-                setTimeout(() => {
-                    const container = collapse.querySelector('.property-contacts-container');
-                    const propertyId = container.getAttribute('data-property-id');
-                    const spinner = container.querySelector('.spinner-border');
-                    const contactsList = container.querySelector('.property-contacts-list');
-            
-            // Fetch property contacts
-            fetch(`/api/properties/${propertyId}/contacts`)
-                .then(response => response.json())
-                .then(data => {
-                    // Hide spinner
-                    spinner.style.display = 'none';
-                    
-                    // Display contacts
-                    if (data.length === 0) {
-                        contactsList.innerHTML = '<div class="alert alert-info">No contacts assigned to this property yet.</div>';
-                    } else {
-                        let html = '<div class="list-group">';
-                        data.forEach(contact => {
-                            const relationshipBadge = getRelationshipBadge(contact.relationship_type);
-                            html += `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">${contact.name}</h6>
-                                        <p class="mb-1 text-muted">
-                                            ${contact.email ? `<i class="fas fa-envelope me-1"></i>${contact.email}` : ''}
-                                            ${contact.email && contact.phone ? ' | ' : ''}
-                                            ${contact.phone ? `<i class="fas fa-phone me-1"></i>${contact.phone}` : ''}
-                                        </p>
-                                        ${relationshipBadge}
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-danger remove-relationship-btn" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#removeRelationshipModal"
-                                            data-contact-id="${contact.contact_id}"
-                                            data-property-id="${propertyId}"
-                                            data-relationship-type="${contact.relationship_type}">
-                                        <i class="fas fa-unlink me-1"></i>Remove
-                                    </button>
+    // Direct approach for loading property contacts
+    function loadPropertyContacts(propertyId) {
+        const container = document.querySelector(`.property-contacts-container[data-property-id="${propertyId}"]`);
+        const spinner = container.querySelector('.spinner-border');
+        const contactsList = container.querySelector('.property-contacts-list');
+        
+        // Show spinner, hide contacts list
+        spinner.style.display = 'block';
+        contactsList.style.display = 'none';
+        
+        // Clear any previous content
+        contactsList.innerHTML = '';
+        
+        // Fetch property contacts
+        fetch(`/api/properties/${propertyId}/contacts`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                
+                // Display contacts
+                if (data.length === 0) {
+                    contactsList.innerHTML = '<div class="alert alert-info">No contacts assigned to this property yet.</div>';
+                } else {
+                    let html = '<div class="list-group">';
+                    data.forEach(contact => {
+                        const relationshipBadge = getRelationshipBadge(contact.relationship_type);
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">${contact.name}</h6>
+                                    <p class="mb-1 text-muted">
+                                        ${contact.email ? `<i class="fas fa-envelope me-1"></i>${contact.email}` : ''}
+                                        ${contact.email && contact.phone ? ' | ' : ''}
+                                        ${contact.phone ? `<i class="fas fa-phone me-1"></i>${contact.phone}` : ''}
+                                    </p>
+                                    ${relationshipBadge}
                                 </div>
-                            `;
-                        });
-                        html += '</div>';
-                        contactsList.innerHTML = html;
-                        
-                        // Set up remove relationship buttons
-                        const removeButtons = contactsList.querySelectorAll('.remove-relationship-btn');
-                        removeButtons.forEach(button => {
-                            button.addEventListener('click', function() {
-                                const contactId = this.getAttribute('data-contact-id');
-                                const propertyId = this.getAttribute('data-property-id');
-                                const relationshipType = this.getAttribute('data-relationship-type');
-                                
-                                document.getElementById('remove-contact-id').value = contactId;
-                                document.getElementById('remove-property-id').value = propertyId;
-                                document.getElementById('remove-relationship-type').value = relationshipType;
-                            });
-                        });
-                    }
+                                <button class="btn btn-sm btn-outline-danger remove-relationship-btn" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#removeRelationshipModal"
+                                        data-contact-id="${contact.contact_id}"
+                                        data-property-id="${propertyId}"
+                                        data-relationship-type="${contact.relationship_type}">
+                                    <i class="fas fa-unlink me-1"></i>Remove
+                                </button>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    contactsList.innerHTML = html;
                     
-                    // Show contacts list
-                    contactsList.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error fetching property contacts:', error);
-                    spinner.style.display = 'none';
-                    contactsList.innerHTML = '<div class="alert alert-danger">Error loading contacts for this property.</div>';
-                    contactsList.style.display = 'block';
-                });
-                }, 300); // 300ms delay to ensure the accordion is open
+                    // Set up remove relationship buttons
+                    const removeButtons = contactsList.querySelectorAll('.remove-relationship-btn');
+                    removeButtons.forEach(button => {
+                        button.addEventListener('click', function() {
+                            const contactId = this.getAttribute('data-contact-id');
+                            const propertyId = this.getAttribute('data-property-id');
+                            const relationshipType = this.getAttribute('data-relationship-type');
+                            
+                            document.getElementById('remove-contact-id').value = contactId;
+                            document.getElementById('remove-property-id').value = propertyId;
+                            document.getElementById('remove-relationship-type').value = relationshipType;
+                        });
+                    });
+                }
+                
+                // Show contacts list
+                contactsList.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error fetching property contacts:', error);
+                spinner.style.display = 'none';
+                contactsList.innerHTML = '<div class="alert alert-danger">Error loading contacts for this property.</div>';
+                contactsList.style.display = 'block';
+            });
+    }
+    
+    // Add direct click handlers to each property accordion button
+    document.querySelectorAll('.accordion-button').forEach(button => {
+        button.addEventListener('click', function() {
+            // Get the collapse target
+            const collapseTarget = this.getAttribute('data-bs-target');
+            const collapseElement = document.querySelector(collapseTarget);
+            
+            // If the button is collapsed (meaning it's about to be expanded)
+            if (this.classList.contains('collapsed')) {
+                // Find the property container inside the collapse element
+                const container = collapseElement.querySelector('.property-contacts-container');
+                const propertyId = container.getAttribute('data-property-id');
+                
+                // Load contacts after a short delay (to allow the accordion to open)
+                setTimeout(() => {
+                    console.log("Loading contacts for property ID:", propertyId);
+                    loadPropertyContacts(propertyId);
+                }, 300);
             }
         });
     });
