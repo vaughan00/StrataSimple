@@ -1,0 +1,1 @@
+console.log('Test property contacts API'); fetch('/api/properties/1/contacts').then(r => r.json()).then(data => console.log('Property 1 contacts:', data)).catch(e => console.error('Error fetching contacts:', e));

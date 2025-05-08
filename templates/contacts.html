@@ -179,8 +179,7 @@
             <div class="accordion-item bg-dark">
                 <h2 class="accordion-header" id="heading{{ property.id }}">
                     <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" 
-                        data-bs-target="#collapse{{ property.id }}" aria-expanded="false" aria-controls="collapse{{ property.id }}"
-                        onclick="loadPropertyContacts({{ property.id }})">
+                        data-bs-target="#collapse{{ property.id }}" aria-expanded="false" aria-controls="collapse{{ property.id }}">
                         <strong>{{ property.unit_number }}</strong>
                     </button>
                 </h2>
@@ -255,6 +254,121 @@
 
 {% block scripts %}
 <script>
+// Helper function to get relationship badge
+function getRelationshipBadge(type) {
+    let badgeClass = '';
+    switch (type) {
+        case 'owner':
+            badgeClass = 'bg-primary';
+            break;
+        case 'manager':
+            badgeClass = 'bg-success';
+            break;
+        case 'tenant':
+            badgeClass = 'bg-info';
+            break;
+        case 'emergency':
+            badgeClass = 'bg-warning';
+            break;
+        default:
+            badgeClass = 'bg-secondary';
+    }
+    
+    return `<span class="badge ${badgeClass}">${type.charAt(0).toUpperCase() + type.slice(1)}</span>`;
+}
+
+// Direct approach for loading property contacts
+function loadPropertyContacts(propertyId) {
+    console.log("Loading property contacts for ID:", propertyId);
+    
+    // Get specific elements for this property
+    const spinnerContainer = document.querySelector(`.spinner-container-${propertyId}`);
+    const contactsList = document.querySelector(`.property-contacts-list-${propertyId}`);
+    
+    if (!spinnerContainer || !contactsList) {
+        console.error(`Could not find elements for property ID ${propertyId}`);
+        return;
+    }
+    
+    // Show spinner, hide contacts list
+    spinnerContainer.style.display = 'block';
+    contactsList.style.display = 'none';
+    
+    // Clear any previous content
+    contactsList.innerHTML = '';
+    
+    // Fetch property contacts
+    fetch(`/api/properties/${propertyId}/contacts`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Received data for property ${propertyId}:`, data);
+            
+            // Hide spinner
+            spinnerContainer.style.display = 'none';
+            
+            // Display contacts
+            if (data.length === 0) {
+                contactsList.innerHTML = '<div class="alert alert-info">No contacts assigned to this property yet.</div>';
+            } else {
+                let html = '<div class="list-group">';
+                data.forEach(contact => {
+                    const relationshipBadge = getRelationshipBadge(contact.relationship_type);
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${contact.name}</h6>
+                                <p class="mb-1 text-muted">
+                                    ${contact.email ? `<i class="fas fa-envelope me-1"></i>${contact.email}` : ''}
+                                    ${contact.email && contact.phone ? ' | ' : ''}
+                                    ${contact.phone ? `<i class="fas fa-phone me-1"></i>${contact.phone}` : ''}
+                                </p>
+                                ${relationshipBadge}
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger remove-relationship-btn" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#removeRelationshipModal"
+                                    data-contact-id="${contact.contact_id}"
+                                    data-property-id="${propertyId}"
+                                    data-relationship-type="${contact.relationship_type}">
+                                <i class="fas fa-unlink me-1"></i>Remove
+                            </button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                contactsList.innerHTML = html;
+                
+                // Set up remove relationship buttons
+                const removeButtons = contactsList.querySelectorAll('.remove-relationship-btn');
+                removeButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const contactId = this.getAttribute('data-contact-id');
+                        const propertyId = this.getAttribute('data-property-id');
+                        const relationshipType = this.getAttribute('data-relationship-type');
+                        
+                        document.getElementById('remove-contact-id').value = contactId;
+                        document.getElementById('remove-property-id').value = propertyId;
+                        document.getElementById('remove-relationship-type').value = relationshipType;
+                    });
+                });
+            }
+            
+            // Show contacts list
+            contactsList.style.display = 'block';
+        })
+        .catch(error => {
+            console.error(`Error fetching property contacts for ID ${propertyId}:`, error);
+            spinnerContainer.style.display = 'none';
+            contactsList.innerHTML = '<div class="alert alert-danger">Error loading contacts for this property.</div>';
+            contactsList.style.display = 'block';
+        });
+}
+
 // Global edit contact function
 function editContact(id, name, email, phone, isOwner, notes) {
     const contactForm = document.getElementById('contact-form');

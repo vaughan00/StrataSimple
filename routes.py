@@ -306,6 +306,20 @@ def contacts():
     contacts = Contact.query.all()
     properties = Property.query.all()
     
+    # Pre-fetch all property contacts to avoid the need for AJAX
+    property_contacts = {}
+    for property in properties:
+        contacts_data = []
+        for assoc in property.contact_associations:
+            contacts_data.append({
+                'contact_id': assoc.contact_id,
+                'name': assoc.contact.name,
+                'relationship_type': assoc.relationship_type,
+                'email': assoc.contact.email,
+                'phone': assoc.contact.phone
+            })
+        property_contacts[property.id] = contacts_data
+    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -416,7 +430,7 @@ def contacts():
             
             return redirect(url_for('contacts'))
     
-    return render_template('contacts.html', contacts=contacts, properties=properties)
+    return render_template('contacts.html', contacts=contacts, properties=properties, property_contacts=property_contacts)
 
 @app.route('/api/contacts')
 def get_contacts():
