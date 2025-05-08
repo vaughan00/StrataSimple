@@ -176,18 +176,20 @@
     <div class="card-body">
         <div class="accordion" id="propertyAccordion">
             {% for property in properties %}
-            <div class="accordion-item">
+            <div class="accordion-item bg-dark">
                 <h2 class="accordion-header" id="heading{{ property.id }}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                    <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" 
                         data-bs-target="#collapse{{ property.id }}" aria-expanded="false" aria-controls="collapse{{ property.id }}">
-                        {{ property.unit_number }}
+                        <strong>{{ property.unit_number }}</strong>
                     </button>
                 </h2>
                 <div id="collapse{{ property.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ property.id }}" data-bs-parent="#propertyAccordion">
-                    <div class="accordion-body">
+                    <div class="accordion-body bg-dark">
                         <div class="property-contacts-container" data-property-id="{{ property.id }}">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
                             </div>
                             <div class="property-contacts-list mt-3" style="display: none;"></div>
                         </div>
@@ -403,16 +405,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Property contacts accordion
+    // Property contacts accordion - using click event instead of bootstrap event
     const accordionButtons = document.querySelectorAll('.accordion-button');
     accordionButtons.forEach(button => {
-        button.addEventListener('shown.bs.collapse', function() {
+        button.addEventListener('click', function() {
+            // Get the collapse target ID
             const collapseId = this.getAttribute('data-bs-target').replace('#', '');
             const collapse = document.getElementById(collapseId);
-            const container = collapse.querySelector('.property-contacts-container');
-            const propertyId = container.getAttribute('data-property-id');
-            const spinner = container.querySelector('.spinner-border');
-            const contactsList = container.querySelector('.property-contacts-list');
+            
+            // Only proceed if the accordion is opening (not closing)
+            if (this.classList.contains('collapsed')) {
+                // Wait a small amount of time for Bootstrap to open the accordion
+                setTimeout(() => {
+                    const container = collapse.querySelector('.property-contacts-container');
+                    const propertyId = container.getAttribute('data-property-id');
+                    const spinner = container.querySelector('.spinner-border');
+                    const contactsList = container.querySelector('.property-contacts-list');
             
             // Fetch property contacts
             fetch(`/api/properties/${propertyId}/contacts`)
@@ -477,6 +485,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     contactsList.innerHTML = '<div class="alert alert-danger">Error loading contacts for this property.</div>';
                     contactsList.style.display = 'block';
                 });
+                }, 300); // 300ms delay to ensure the accordion is open
+            }
         });
     });
     

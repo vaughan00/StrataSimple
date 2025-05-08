@@ -105,3 +105,38 @@
     border-color: var(--bs-primary);
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
+
+/* Dark mode accordion styling */
+.accordion-item {
+    background-color: #212529;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.accordion-button {
+    background-color: #212529;
+    color: #fff;
+}
+
+.accordion-button:not(.collapsed) {
+    color: #fff;
+    background-color: #1a1d20;
+}
+
+.accordion-button:not(.collapsed)::after {
+    filter: brightness(2);
+}
+
+.accordion-button::after {
+    filter: brightness(2);
+}
+
+.accordion-button:focus {
+    border-color: rgba(13, 110, 253, 0.5);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.list-group-item {
+    background-color: #212529;
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.1);
+}
