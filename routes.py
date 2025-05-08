@@ -1,13 +1,13 @@
 import os
 import pandas as pd
 from datetime import datetime
-from flask import render_template, redirect, url_for, request, flash, jsonify
+from flask import render_template, redirect, url_for, request, flash, jsonify, session
 from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
 from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty
-from utils import process_csv, match_payments_to_properties
+from utils import process_csv, analyze_payments
 
 @app.route('/')
 def index():
@@ -58,65 +58,135 @@ def get_properties():
 def reconciliation():
     """Page for CSV upload and reconciliation."""
     if request.method == 'POST':
-        # Check if file part exists
-        if 'file' not in request.files:
-            flash('No file part', 'danger')
-            return redirect(request.url)
-        
-        file = request.files['file']
-        
-        # Check if file is empty
-        if file.filename == '':
-            flash('No selected file', 'danger')
-            return redirect(request.url)
-        
-        # Check file type
-        if file and file.filename.endswith('.csv'):
-            # Read CSV content
-            content = file.read().decode('utf-8')
+        # Handle CSV file upload
+        if 'file' in request.files:
+            file = request.files['file']
             
-            try:
-                # Process CSV data
-                payments = process_csv(content)
-                
-                # Match payments to properties
-                matched, unmatched = match_payments_to_properties(payments)
-                
-                # Save matched payments to database
-                for payment in matched:
-                    # Create new payment record
-                    new_payment = Payment(
-                        property_id=payment['property_id'],
-                        amount=payment['amount'],
-                        date=payment['date'],
-                        description=payment['description'],
-                        reference=payment['reference'],
-                        reconciled=True
-                    )
-                    db.session.add(new_payment)
-                    
-                    # Update property balance
-                    property = Property.query.get(payment['property_id'])
-                    if property:
-                        property.balance += payment['amount']
-                
-                db.session.commit()
-                
-                flash(f'Successfully reconciled {len(matched)} payments. {len(unmatched)} payments could not be matched.', 'success')
-                
-                return render_template('reconciliation.html', 
-                                      matched_payments=matched, 
-                                      unmatched_payments=unmatched)
-            
-            except Exception as e:
-                flash(f'Error processing CSV: {str(e)}', 'danger')
+            # Check if file is empty
+            if file.filename == '':
+                flash('No selected file', 'danger')
                 return redirect(request.url)
-        else:
-            flash('Only CSV files are allowed', 'danger')
-            return redirect(request.url)
+            
+            # Check file type
+            if file and file.filename.endswith('.csv'):
+                # Read CSV content
+                content = file.read().decode('utf-8')
+                
+                try:
+                    # Process CSV data and analyze payments
+                    payments = process_csv(content)
+                    analyzed_payments = analyze_payments(payments)
+                    
+                    # Store in session for later confirmation
+                    session_data = {
+                        'transactions': [
+                            {
+                                'date': payment['date'].strftime('%Y-%m-%d'),
+                                'amount': payment['amount'],
+                                'description': payment['description'],
+                                'reference': payment['reference'],
+                                'transaction_id': payment['transaction_id'],
+                                'is_duplicate': payment.get('is_duplicate', False),
+                                'suggested_property_id': payment.get('suggested_property', {}).get('id'),
+                                'suggested_fee_id': payment.get('suggested_fee', {}).get('id')
+                            }
+                            for payment in analyzed_payments
+                        ]
+                    }
+                    
+                    # Count duplicates
+                    duplicate_count = sum(1 for p in analyzed_payments if p.get('is_duplicate', False))
+                    
+                    # Count suggested matches
+                    suggested_matches = sum(1 for p in analyzed_payments if p.get('suggested_property') is not None)
+                    
+                    flash(f'Successfully processed {len(analyzed_payments)} transactions. Found {duplicate_count} potential duplicates and suggested matches for {suggested_matches} transactions.', 'success')
+                    
+                    return render_template('reconciliation.html', 
+                                          transactions=analyzed_payments,
+                                          properties=Property.query.all(),
+                                          unpaid_fees=Fee.query.filter_by(paid=False).all())
+                
+                except Exception as e:
+                    flash(f'Error processing CSV: {str(e)}', 'danger')
+                    return redirect(request.url)
+            else:
+                flash('Only CSV files are allowed', 'danger')
+                return redirect(request.url)
+                
+        # Handle transaction confirmation form
+        elif request.form.get('action') == 'confirm_matches':
+            # Process the confirmed transactions
+            transaction_ids = request.form.getlist('transaction_id')
+            property_ids = request.form.getlist('property_id')
+            fee_ids = request.form.getlist('fee_id')
+            exclude_flags = request.form.getlist('exclude')
+            
+            confirmed_count = 0
+            excluded_count = 0
+            
+            for i, transaction_id in enumerate(transaction_ids):
+                # Skip if excluded
+                if str(i) in exclude_flags:
+                    excluded_count += 1
+                    continue
+                
+                # Get form data
+                property_id = property_ids[i] if property_ids[i] else None
+                fee_id = fee_ids[i] if fee_ids[i] and fee_ids[i] != "null" else None
+                
+                # Skip if no property selected
+                if not property_id:
+                    continue
+                
+                # Get transaction details from form
+                date_str = request.form.getlist('date')[i]
+                amount = float(request.form.getlist('amount')[i])
+                description = request.form.getlist('description')[i]
+                reference = request.form.getlist('reference')[i]
+                
+                date = datetime.strptime(date_str, '%Y-%m-%d')
+                
+                # Create payment record
+                new_payment = Payment(
+                    property_id=property_id,
+                    fee_id=fee_id,
+                    amount=amount,
+                    date=date,
+                    description=description,
+                    reference=reference,
+                    transaction_id=transaction_id,
+                    reconciled=True,
+                    confirmed=True
+                )
+                db.session.add(new_payment)
+                
+                # Update property balance
+                property = Property.query.get(property_id)
+                if property:
+                    property.balance += amount
+                
+                # Mark fee as paid if assigned
+                if fee_id:
+                    fee = Fee.query.get(fee_id)
+                    if fee:
+                        fee.paid = True
+                
+                confirmed_count += 1
+            
+            db.session.commit()
+            
+            flash(f'Successfully confirmed {confirmed_count} payments and excluded {excluded_count} transactions.', 'success')
+            return redirect(url_for('index'))
     
-    # GET request
-    return render_template('reconciliation.html', matched_payments=None, unmatched_payments=None)
+    # GET request - show previously confirmed payments
+    recently_confirmed = Payment.query.filter_by(confirmed=True).order_by(Payment.created_at.desc()).limit(10).all()
+    
+    return render_template('reconciliation.html', 
+                          transactions=None,
+                          properties=Property.query.all(),
+                          unpaid_fees=Fee.query.filter_by(paid=False).all(), 
+                          recently_confirmed=recently_confirmed)
 
 @app.route('/fees', methods=['GET', 'POST'])
 def fees():

@@ -1,10 +1,11 @@
 import pandas as pd
 import re
+import hashlib
 from datetime import datetime
 from io import StringIO
 
 from app import db
-from models import Property
+from models import Property, Payment, Fee
 
 def process_csv(csv_content):
     """
@@ -62,26 +63,58 @@ def process_csv(csv_content):
         except Exception:
             date = datetime.now()
         
+        description = str(row[description_col]) if pd.notnull(row[description_col]) else ''
+        reference = str(row[reference_col]) if pd.notnull(row[reference_col]) else ''
+        
+        # Create a unique transaction ID based on date, amount, and description/reference
+        # This helps with duplicate detection
+        transaction_data = f"{date.strftime('%Y-%m-%d')}-{amount:.2f}-{description}-{reference}"
+        transaction_id = hashlib.md5(transaction_data.encode()).hexdigest()
+        
         # Create payment dictionary
         payment = {
             'date': date,
             'amount': amount,
-            'description': str(row[description_col]) if pd.notnull(row[description_col]) else '',
-            'reference': str(row[reference_col]) if pd.notnull(row[reference_col]) else ''
+            'description': description,
+            'reference': reference,
+            'transaction_id': transaction_id
         }
         
         payments.append(payment)
     
     return payments
 
-def match_payments_to_properties(payments):
+def check_for_duplicates(payments):
     """
-    Match payments to properties based on reference or description.
-    Returns two lists: matched payments and unmatched payments.
+    Check each payment for potential duplicates in the database.
+    Adds is_duplicate flag to payment dictionaries.
     """
-    matched = []
-    unmatched = []
+    for payment in payments:
+        # Check if a payment with the same transaction_id already exists
+        existing_payment = Payment.query.filter_by(transaction_id=payment['transaction_id']).first()
+        
+        if existing_payment:
+            payment['is_duplicate'] = True
+        else:
+            # Also check by date, amount, and description for extra safety
+            similar_payments = Payment.query.filter(
+                Payment.date.between(
+                    payment['date'].replace(hour=0, minute=0, second=0),
+                    payment['date'].replace(hour=23, minute=59, second=59)
+                ),
+                Payment.amount == payment['amount'],
+                Payment.description == payment['description']
+            ).all()
+            
+            payment['is_duplicate'] = len(similar_payments) > 0
     
+    return payments
+
+def suggest_property_matches(payments):
+    """
+    Suggest potential property matches for each payment based on reference or description.
+    Adds suggestions to payment dictionaries.
+    """
     # Get all properties
     properties = Property.query.all()
     
@@ -91,12 +124,14 @@ def match_payments_to_properties(payments):
         
         # Find property match
         matched_property = None
+        match_confidence = 0  # 0-100 scale
         
         for prop in properties:
             # Check if unit number is in the text
             unit_pattern = re.compile(r'\b' + re.escape(prop.unit_number.lower()) + r'\b')
             if unit_pattern.search(text_to_search):
                 matched_property = prop
+                match_confidence = 90  # High confidence for exact unit number match
                 break
             
             # Check if there's an owner contact for this property
@@ -106,20 +141,75 @@ def match_payments_to_properties(payments):
                 owner_parts = owner_contact.name.lower().split()
                 if all(part in text_to_search for part in owner_parts if len(part) > 2):
                     matched_property = prop
+                    match_confidence = 70  # Medium confidence for owner name match
                     break
         
-        # If property matched, add to matched list
+        # Add property suggestion to payment
         if matched_property:
-            payment_with_property = payment.copy()
-            payment_with_property['property_id'] = matched_property.id
-            payment_with_property['unit_number'] = matched_property.unit_number
-            
-            # Add owner name if exists
-            owner = matched_property.get_owner()
-            payment_with_property['owner_name'] = owner.name if owner else "No owner assigned"
-            
-            matched.append(payment_with_property)
+            payment['suggested_property'] = {
+                'id': matched_property.id,
+                'unit_number': matched_property.unit_number,
+                'owner': matched_property.get_owner().name if matched_property.get_owner() else "No owner assigned",
+                'confidence': match_confidence
+            }
         else:
-            unmatched.append(payment)
+            payment['suggested_property'] = None
     
-    return matched, unmatched
+    return payments
+
+def suggest_fee_matches(payments):
+    """
+    Suggest potential fee matches for each payment that has a suggested property.
+    Adds fee suggestions to payment dictionaries.
+    """
+    for payment in payments:
+        if not payment.get('suggested_property'):
+            payment['suggested_fee'] = None
+            continue
+        
+        property_id = payment['suggested_property']['id']
+        
+        # Get unpaid fees for this property, ordered by date (oldest first)
+        unpaid_fees = Fee.query.filter_by(
+            property_id=property_id,
+            paid=False
+        ).order_by(Fee.date.asc()).all()
+        
+        # Try to find a matching fee by amount
+        matching_fee = None
+        for fee in unpaid_fees:
+            # Exact match
+            if abs(fee.amount - payment['amount']) < 0.01:
+                matching_fee = fee
+                break
+            # Close match (within 5%)
+            elif abs(fee.amount - payment['amount']) / fee.amount < 0.05:
+                matching_fee = fee
+                break
+        
+        # If no fee matches by amount, suggest the oldest unpaid fee
+        if not matching_fee and unpaid_fees:
+            matching_fee = unpaid_fees[0]
+        
+        # Add fee suggestion to payment
+        if matching_fee:
+            payment['suggested_fee'] = {
+                'id': matching_fee.id,
+                'amount': matching_fee.amount,
+                'period': matching_fee.period,
+                'exact_match': abs(matching_fee.amount - payment['amount']) < 0.01
+            }
+        else:
+            payment['suggested_fee'] = None
+    
+    return payments
+
+def analyze_payments(payments):
+    """
+    Complete analysis of payments: check duplicates, suggest properties and fees.
+    Returns analyzed payments.
+    """
+    payments = check_for_duplicates(payments)
+    payments = suggest_property_matches(payments)
+    payments = suggest_fee_matches(payments)
+    return payments

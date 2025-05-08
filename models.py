@@ -80,13 +80,20 @@ class ContactProperty(db.Model):
 class Payment(db.Model):
     """Model for payments made by property owners."""
     id = db.Column(db.Integer, primary_key=True)
-    property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=False)
+    property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=True)  # Nullable because it might not be assigned yet
+    fee_id = db.Column(db.Integer, db.ForeignKey('fee.id'), nullable=True)  # Associated fee, if any
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False)
     description = db.Column(db.String(200))
     reference = db.Column(db.String(100))  # Reference number from bank statement
     reconciled = db.Column(db.Boolean, default=False)
+    is_duplicate = db.Column(db.Boolean, default=False)  # Flag for potential duplicates
+    confirmed = db.Column(db.Boolean, default=False)  # Whether the match has been confirmed by user
+    transaction_id = db.Column(db.String(100), nullable=True)  # Unique identifier for the transaction (for duplicate detection)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Add relationship to fee
+    fee = db.relationship('Fee', backref='payments', lazy=True, foreign_keys=[fee_id])
     
     def __repr__(self):
         return f"<Payment {self.amount} for Property {self.property_id}>"
