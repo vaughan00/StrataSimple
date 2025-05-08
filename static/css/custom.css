@@ -1,0 +1,83 @@
+/* 
+* Custom CSS for the Strata Finance Manager
+* This file contains minimal custom styling, relying primarily on Bootstrap defaults 
+*/
+
+/* Dashboard card hover effect */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom styling for dashboard numbers */
+.card h2 {
+    font-weight: 600;
+    color: var(--bs-primary);
+}
+
+/* Make Tabulator tables fit the dark theme */
+.tabulator {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabulator .tabulator-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabulator .tabulator-header .tabulator-col {
+    background-color: transparent;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabulator .tabulator-tableHolder .tabulator-table {
+    color: inherit;
+}
+
+.tabulator-row {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tabulator-row.tabulator-row-even {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tabulator-row.tabulator-selectable:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.tabulator-row .tabulator-cell {
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Custom footer styling */
+.footer {
+    margin-top: 2rem;
+    padding: 1rem 0;
+    font-size: 0.9rem;
+}
+
+/* Custom badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Improve form control visibility in dark mode */
+.form-control, .form-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: inherit;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}

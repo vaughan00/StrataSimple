@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Reconciliation - Strata Finance Manager</title>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">Payment Reconciliation</h1>
+        <p class="text-muted">Upload bank statement CSV to reconcile incoming payments</p>
+    </div>
+</div>
+
+<!-- CSV Upload Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Upload Bank Statement</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">CSV File</label>
+                <input class="form-control" type="file" id="file" name="file" accept=".csv" required>
+                <div class="form-text">Upload a CSV export of your bank statement. The system will attempt to match payments to properties.</div>
+            </div>
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle me-2"></i> The system will look for property unit numbers or owner names in the payment reference or description to match payments.
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i>Upload and Process
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if matched_payments %}
+<!-- Matched Payments Card -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-check-circle me-2"></i>Matched Payments
+            <span class="badge bg-light text-dark ms-2">{{ matched_payments|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Property</th>
+                        <th>Owner</th>
+                        <th>Amount</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in matched_payments %}
+                    <tr>
+                        <td>{{ payment.date.strftime('%d %b %Y') }}</td>
+                        <td>Unit {{ payment.unit_number }}</td>
+                        <td>{{ payment.owner_name }}</td>
+                        <td class="text-success">${{ "%.2f"|format(payment.amount) }}</td>
+                        <td>{{ payment.reference }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if unmatched_payments %}
+<!-- Unmatched Payments Card -->
+<div class="card mb-4">
+    <div class="card-header bg-warning">
+        <h5 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>Unmatched Payments
+            <span class="badge bg-light text-dark ms-2">{{ unmatched_payments|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-3">These payments could not be automatically matched to any property. You may need to manually associate them.</p>
+        <div class="table-responsive">
+            <table class="table table-hover" id="unmatched-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                        <th>Reference</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in unmatched_payments %}
+                    <tr>
+                        <td>{{ payment.date.strftime('%d %b %Y') }}</td>
+                        <td>${{ "%.2f"|format(payment.amount) }}</td>
+                        <td>{{ payment.description }}</td>
+                        <td>{{ payment.reference }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary manual-match-btn" data-bs-toggle="modal" data-bs-target="#matchModal" data-payment-index="{{ loop.index0 }}">
+                                <i class="fas fa-link me-1"></i>Match
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Match Modal -->
+<div class="modal fade" id="matchModal" tabindex="-1" aria-labelledby="matchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="matchModalLabel">Match Payment to Property</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="manual-match-form">
+                    <input type="hidden" id="payment-index" name="payment-index">
+                    <div class="mb-3">
+                        <label for="property-select" class="form-label">Select Property</label>
+                        <select class="form-select" id="property-select" required>
+                            <option value="" selected disabled>Choose a property...</option>
+                            <!-- This will be populated by JS -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Details</label>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="mb-1"><strong>Date:</strong> <span id="modal-payment-date"></span></p>
+                                <p class="mb-1"><strong>Amount:</strong> <span id="modal-payment-amount"></span></p>
+                                <p class="mb-1"><strong>Reference:</strong> <span id="modal-payment-reference"></span></p>
+                                <p class="mb-0"><strong>Description:</strong> <span id="modal-payment-description"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-match-btn">Confirm Match</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reconciliation.js') }}"></script>
+{% endblock %}
