@@ -31,4 +31,6 @@ db.init_app(app)
 with app.app_context():
     # Import models to create tables
     import models
+    # Drop all tables and recreate them
+    db.drop_all()
     db.create_all()

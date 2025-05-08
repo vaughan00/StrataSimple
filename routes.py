@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
-from models import Property, Payment, Fee, BillingPeriod
+from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty
 from utils import process_csv, match_payments_to_properties
 
 @app.route('/')
@@ -39,10 +39,14 @@ def get_properties():
         unpaid_fees = sum(fee.amount for fee in prop.fees if not fee.paid)
         total_payments = sum(payment.amount for payment in prop.payments)
         
+        # Get owner name
+        owner = prop.get_owner()
+        owner_name = owner.name if owner else "No owner assigned"
+        
         properties_data.append({
             'id': prop.id,
             'unit_number': prop.unit_number,
-            'owner_name': prop.owner_name,
+            'owner_name': owner_name,
             'balance': prop.balance,
             'unpaid_fees': unpaid_fees,
             'total_payments': total_payments
@@ -174,10 +178,17 @@ def get_period_fees(period_id):
     fees_data = []
     for fee in fees:
         property = Property.query.get(fee.property_id)
+        if not property:
+            continue
+            
+        # Get owner name
+        owner = property.get_owner()
+        owner_name = owner.name if owner else "No owner assigned"
+        
         fees_data.append({
             'id': fee.id,
             'unit_number': property.unit_number,
-            'owner_name': property.owner_name,
+            'owner_name': owner_name,
             'amount': fee.amount,
             'paid': fee.paid
         })
@@ -192,6 +203,259 @@ def mark_fee_paid(fee_id):
     db.session.commit()
     
     return jsonify({'success': True})
+
+# Setup routes
+@app.route('/setup', methods=['GET', 'POST'])
+def setup():
+    """Page for initial strata setup and property management."""
+    properties = Property.query.all()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_property':
+            # Add a new property
+            unit_number = request.form.get('unit_number')
+            description = request.form.get('description')
+            entitlement = float(request.form.get('entitlement') or 1.0)
+            
+            # Check if property with this unit number already exists
+            if Property.query.filter_by(unit_number=unit_number).first():
+                flash(f'Property with unit number {unit_number} already exists', 'danger')
+                return redirect(url_for('setup'))
+            
+            # Create new property
+            new_property = Property(
+                unit_number=unit_number,
+                description=description,
+                entitlement=entitlement
+            )
+            db.session.add(new_property)
+            db.session.commit()
+            
+            flash(f'Property {unit_number} added successfully', 'success')
+            return redirect(url_for('setup'))
+            
+        elif action == 'edit_property':
+            # Edit existing property
+            property_id = request.form.get('property_id')
+            property = Property.query.get_or_404(property_id)
+            
+            property.unit_number = request.form.get('unit_number')
+            property.description = request.form.get('description')
+            property.entitlement = float(request.form.get('entitlement') or 1.0)
+            
+            db.session.commit()
+            
+            flash(f'Property {property.unit_number} updated successfully', 'success')
+            return redirect(url_for('setup'))
+            
+        elif action == 'delete_property':
+            # Delete property
+            property_id = request.form.get('property_id')
+            property = Property.query.get_or_404(property_id)
+            
+            # Check if property has payments or fees
+            if property.payments or property.fees:
+                flash(f'Cannot delete property {property.unit_number} because it has associated payments or fees', 'danger')
+                return redirect(url_for('setup'))
+            
+            # Delete all contact associations
+            for assoc in property.contact_associations:
+                db.session.delete(assoc)
+            
+            db.session.delete(property)
+            db.session.commit()
+            
+            flash(f'Property {property.unit_number} deleted successfully', 'success')
+            return redirect(url_for('setup'))
+            
+        elif action == 'bulk_add':
+            # Bulk add properties
+            num_properties = int(request.form.get('num_properties') or 0)
+            prefix = request.form.get('prefix') or 'Unit'
+            
+            if num_properties <= 0:
+                flash('Please enter a valid number of properties', 'danger')
+                return redirect(url_for('setup'))
+            
+            # Create properties with sequential unit numbers
+            for i in range(1, num_properties + 1):
+                unit_number = f"{prefix} {i}"
+                
+                # Skip if property with this unit number already exists
+                if Property.query.filter_by(unit_number=unit_number).first():
+                    continue
+                
+                new_property = Property(
+                    unit_number=unit_number,
+                    entitlement=1.0
+                )
+                db.session.add(new_property)
+            
+            db.session.commit()
+            
+            flash(f'Successfully added {num_properties} properties', 'success')
+            return redirect(url_for('setup'))
+    
+    return render_template('setup.html', properties=properties)
+
+@app.route('/contacts', methods=['GET', 'POST'])
+def contacts():
+    """Page for managing contacts and owners."""
+    contacts = Contact.query.all()
+    properties = Property.query.all()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_contact':
+            # Add a new contact
+            name = request.form.get('name')
+            email = request.form.get('email')
+            phone = request.form.get('phone')
+            is_owner = request.form.get('is_owner') == 'on'
+            notes = request.form.get('notes')
+            
+            new_contact = Contact(
+                name=name,
+                email=email,
+                phone=phone,
+                is_owner=is_owner,
+                notes=notes
+            )
+            db.session.add(new_contact)
+            db.session.commit()
+            
+            flash(f'Contact {name} added successfully', 'success')
+            return redirect(url_for('contacts'))
+            
+        elif action == 'edit_contact':
+            # Edit existing contact
+            contact_id = request.form.get('contact_id')
+            contact = Contact.query.get_or_404(contact_id)
+            
+            contact.name = request.form.get('name')
+            contact.email = request.form.get('email')
+            contact.phone = request.form.get('phone')
+            contact.is_owner = request.form.get('is_owner') == 'on'
+            contact.notes = request.form.get('notes')
+            
+            db.session.commit()
+            
+            flash(f'Contact {contact.name} updated successfully', 'success')
+            return redirect(url_for('contacts'))
+            
+        elif action == 'delete_contact':
+            # Delete contact
+            contact_id = request.form.get('contact_id')
+            contact = Contact.query.get_or_404(contact_id)
+            
+            # Delete all property associations
+            for assoc in contact.property_associations:
+                db.session.delete(assoc)
+            
+            db.session.delete(contact)
+            db.session.commit()
+            
+            flash(f'Contact {contact.name} deleted successfully', 'success')
+            return redirect(url_for('contacts'))
+            
+        elif action == 'assign_property':
+            # Assign contact to property
+            contact_id = request.form.get('contact_id')
+            property_id = request.form.get('property_id')
+            relationship_type = request.form.get('relationship_type')
+            
+            # Check if this relationship already exists
+            existing = ContactProperty.query.filter_by(
+                contact_id=contact_id,
+                property_id=property_id,
+                relationship_type=relationship_type
+            ).first()
+            
+            if existing:
+                flash('This relationship already exists', 'warning')
+                return redirect(url_for('contacts'))
+            
+            # Create new relationship
+            new_assoc = ContactProperty(
+                contact_id=contact_id,
+                property_id=property_id,
+                relationship_type=relationship_type
+            )
+            db.session.add(new_assoc)
+            db.session.commit()
+            
+            contact = Contact.query.get(contact_id)
+            property = Property.query.get(property_id)
+            
+            flash(f'Successfully assigned {contact.name} as {relationship_type} of {property.unit_number}', 'success')
+            return redirect(url_for('contacts'))
+            
+        elif action == 'remove_assignment':
+            # Remove contact from property
+            contact_id = request.form.get('contact_id')
+            property_id = request.form.get('property_id')
+            relationship_type = request.form.get('relationship_type')
+            
+            assoc = ContactProperty.query.filter_by(
+                contact_id=contact_id,
+                property_id=property_id,
+                relationship_type=relationship_type
+            ).first()
+            
+            if assoc:
+                db.session.delete(assoc)
+                db.session.commit()
+                
+                contact = Contact.query.get(contact_id)
+                property = Property.query.get(property_id)
+                
+                flash(f'Successfully removed {contact.name} as {relationship_type} of {property.unit_number}', 'success')
+            
+            return redirect(url_for('contacts'))
+    
+    return render_template('contacts.html', contacts=contacts, properties=properties)
+
+@app.route('/api/contacts')
+def get_contacts():
+    """API endpoint to get all contacts data."""
+    contacts = Contact.query.all()
+    contacts_data = []
+    
+    for contact in contacts:
+        owned_properties = [p.unit_number for p in contact.owned_properties]
+        managed_properties = [p.unit_number for p in contact.managed_properties]
+        
+        contacts_data.append({
+            'id': contact.id,
+            'name': contact.name,
+            'email': contact.email,
+            'phone': contact.phone,
+            'is_owner': contact.is_owner,
+            'owned_properties': owned_properties,
+            'managed_properties': managed_properties
+        })
+    
+    return jsonify(contacts_data)
+
+@app.route('/api/properties/<int:property_id>/contacts')
+def get_property_contacts(property_id):
+    """API endpoint to get contacts for a specific property."""
+    property = Property.query.get_or_404(property_id)
+    
+    contacts_data = []
+    for assoc in property.contact_associations:
+        contacts_data.append({
+            'contact_id': assoc.contact_id,
+            'name': assoc.contact.name,
+            'relationship_type': assoc.relationship_type,
+            'email': assoc.contact.email,
+            'phone': assoc.contact.phone
+        })
+    
+    return jsonify(contacts_data)
 
 # Error handlers
 @app.errorhandler(404)

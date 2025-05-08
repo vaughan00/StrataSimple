@@ -99,18 +99,25 @@ def match_payments_to_properties(payments):
                 matched_property = prop
                 break
             
-            # Check if owner name is in the text (split into words for more flexible matching)
-            owner_parts = prop.owner_name.lower().split()
-            if all(part in text_to_search for part in owner_parts if len(part) > 2):
-                matched_property = prop
-                break
+            # Check if there's an owner contact for this property
+            owner_contact = prop.get_owner()
+            if owner_contact:
+                # Check if owner name is in the text (split into words for more flexible matching)
+                owner_parts = owner_contact.name.lower().split()
+                if all(part in text_to_search for part in owner_parts if len(part) > 2):
+                    matched_property = prop
+                    break
         
         # If property matched, add to matched list
         if matched_property:
             payment_with_property = payment.copy()
             payment_with_property['property_id'] = matched_property.id
             payment_with_property['unit_number'] = matched_property.unit_number
-            payment_with_property['owner_name'] = matched_property.owner_name
+            
+            # Add owner name if exists
+            owner = matched_property.get_owner()
+            payment_with_property['owner_name'] = owner.name if owner else "No owner assigned"
+            
             matched.append(payment_with_property)
         else:
             unmatched.append(payment)

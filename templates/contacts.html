@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Contacts - Strata Finance Manager</title>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">Contacts Management</h1>
+        <p class="text-muted">Manage property owners and contacts</p>
+    </div>
+</div>
+
+<!-- Add/Edit Contact -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0" id="contact-form-title">
+            <i class="fas fa-user-plus me-2"></i>Add New Contact
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="contact-form">
+            <input type="hidden" name="action" value="add_contact" id="contact-action">
+            <input type="hidden" name="contact_id" id="contact-id">
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="phone" class="form-label">Phone</label>
+                    <input type="tel" class="form-control" id="phone" name="phone">
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_owner" name="is_owner" checked>
+                        <label class="form-check-label" for="is_owner">
+                            This contact is a property owner
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary" id="contact-submit-btn">
+                        <i class="fas fa-plus me-2"></i>Add Contact
+                    </button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+            </div>
+        </form>
+        
+        <div class="mt-3" id="edit-controls" style="display: none;">
+            <button class="btn btn-secondary" id="cancel-edit-btn">
+                <i class="fas fa-times me-2"></i>Cancel Edit
+            </button>
+            <button class="btn btn-danger float-end" id="delete-contact-btn" data-bs-toggle="modal" data-bs-target="#deleteContactModal">
+                <i class="fas fa-trash me-2"></i>Delete Contact
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Properties -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-link me-2"></i>Assign Properties
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="assign-form">
+            <input type="hidden" name="action" value="assign_property">
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="contact_id" class="form-label">Contact</label>
+                    <select class="form-select" id="contact_id" name="contact_id" required>
+                        <option value="" selected disabled>Select a contact...</option>
+                        {% for contact in contacts %}
+                        <option value="{{ contact.id }}">{{ contact.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="property_id" class="form-label">Property</label>
+                    <select class="form-select" id="property_id" name="property_id" required>
+                        <option value="" selected disabled>Select a property...</option>
+                        {% for property in properties %}
+                        <option value="{{ property.id }}">{{ property.unit_number }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="relationship_type" class="form-label">Relationship</label>
+                    <select class="form-select" id="relationship_type" name="relationship_type" required>
+                        <option value="owner">Owner</option>
+                        <option value="manager">Manager</option>
+                        <option value="tenant">Tenant</option>
+                        <option value="emergency">Emergency Contact</option>
+                    </select>
+                </div>
+            </div>
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-link me-2"></i>Assign Relationship
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contacts Table -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-address-book me-2"></i>Contacts
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if contacts %}
+        <div id="contactsTable"></div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-users fa-3x mb-3 text-muted"></i>
+            <p class="lead">No contacts added yet</p>
+            <p class="text-muted">Use the form above to add your first contact.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Property Relationships -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-project-diagram me-2"></i>Property Relationships
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="accordion" id="propertyAccordion">
+            {% for property in properties %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ property.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#collapse{{ property.id }}" aria-expanded="false" aria-controls="collapse{{ property.id }}">
+                        {{ property.unit_number }}
+                    </button>
+                </h2>
+                <div id="collapse{{ property.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ property.id }}" data-bs-parent="#propertyAccordion">
+                    <div class="accordion-body">
+                        <div class="property-contacts-container" data-property-id="{{ property.id }}">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="property-contacts-list mt-3" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteContactModal" tabindex="-1" aria-labelledby="deleteContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteContactModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this contact? This action cannot be undone.</p>
+                <p>All property relationships with this contact will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" id="delete-contact-form">
+                    <input type="hidden" name="action" value="delete_contact">
+                    <input type="hidden" name="contact_id" id="delete-contact-id">
+                    <button type="submit" class="btn btn-danger">Delete Contact</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remove Relationship Modal -->
+<div class="modal fade" id="removeRelationshipModal" tabindex="-1" aria-labelledby="removeRelationshipModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="removeRelationshipModalLabel">Remove Relationship</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to remove this relationship?</p>
+                <p>This will not delete the contact or property, only the relationship between them.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" id="remove-relationship-form">
+                    <input type="hidden" name="action" value="remove_assignment">
+                    <input type="hidden" name="contact_id" id="remove-contact-id">
+                    <input type="hidden" name="property_id" id="remove-property-id">
+                    <input type="hidden" name="relationship_type" id="remove-relationship-type">
+                    <button type="submit" class="btn btn-danger">Remove Relationship</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Contact edit functionality
+    const contactForm = document.getElementById('contact-form');
+    const contactAction = document.getElementById('contact-action');
+    const contactId = document.getElementById('contact-id');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const isOwnerInput = document.getElementById('is_owner');
+    const notesInput = document.getElementById('notes');
+    const contactFormTitle = document.getElementById('contact-form-title');
+    const contactSubmitBtn = document.getElementById('contact-submit-btn');
+    const editControls = document.getElementById('edit-controls');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const deleteContactBtn = document.getElementById('delete-contact-btn');
+    const deleteContactId = document.getElementById('delete-contact-id');
+    
+    // Initialize Tabulator for contacts table if there are contacts
+    if (document.getElementById('contactsTable')) {
+        // Fetch contacts data
+        fetch('/api/contacts')
+            .then(response => response.json())
+            .then(data => {
+                // Initialize Tabulator
+                const table = new Tabulator("#contactsTable", {
+                    data: data,
+                    layout: "fitColumns",
+                    responsiveLayout: "collapse",
+                    pagination: "local",
+                    paginationSize: 10,
+                    columns: [
+                        {title: "Name", field: "name", sorter: "string", headerFilter: true},
+                        {title: "Email", field: "email", sorter: "string"},
+                        {title: "Phone", field: "phone", sorter: "string"},
+                        {
+                            title: "Type", 
+                            field: "is_owner", 
+                            formatter: function(cell) {
+                                return cell.getValue() ? 'Owner' : 'Contact';
+                            }
+                        },
+                        {
+                            title: "Owned Properties", 
+                            field: "owned_properties", 
+                            formatter: function(cell) {
+                                const properties = cell.getValue();
+                                if (properties && properties.length) {
+                                    return properties.join(", ");
+                                }
+                                return "None";
+                            }
+                        },
+                        {
+                            title: "Actions",
+                            formatter: function(cell) {
+                                const rowData = cell.getRow().getData();
+                                return `<button class="btn btn-sm btn-outline-primary edit-contact-btn" data-id="${rowData.id}">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                if (e.target.classList.contains('edit-contact-btn') || 
+                                    e.target.parentElement.classList.contains('edit-contact-btn')) {
+                                    const id = cell.getRow().getData().id;
+                                    editContact(id);
+                                }
+                            }
+                        }
+                    ]
+                });
+                
+                // Set up edit buttons
+                function editContact(id) {
+                    // Find contact data
+                    const contact = data.find(c => c.id === id);
+                    if (!contact) return;
+                    
+                    // Set form to edit mode
+                    contactAction.value = 'edit_contact';
+                    contactId.value = id;
+                    nameInput.value = contact.name;
+                    emailInput.value = contact.email || '';
+                    phoneInput.value = contact.phone || '';
+                    isOwnerInput.checked = contact.is_owner;
+                    notesInput.value = contact.notes || '';
+                    
+                    // Update UI for edit mode
+                    contactFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Contact';
+                    contactSubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+                    editControls.style.display = 'block';
+                    deleteContactId.value = id;
+                    
+                    // Scroll to form
+                    contactForm.scrollIntoView({behavior: 'smooth'});
+                }
+            })
+            .catch(error => console.error('Error fetching contacts:', error));
+    }
+    
+    // Reset form to add mode
+    function resetForm() {
+        contactAction.value = 'add_contact';
+        contactId.value = '';
+        contactForm.reset();
+        contactFormTitle.innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New Contact';
+        contactSubmitBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Add Contact';
+        editControls.style.display = 'none';
+    }
+    
+    // Cancel edit button
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            resetForm();
+        });
+    }
+    
+    // Property contacts accordion
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(button => {
+        button.addEventListener('shown.bs.collapse', function() {
+            const collapseId = this.getAttribute('data-bs-target').replace('#', '');
+            const collapse = document.getElementById(collapseId);
+            const container = collapse.querySelector('.property-contacts-container');
+            const propertyId = container.getAttribute('data-property-id');
+            const spinner = container.querySelector('.spinner-border');
+            const contactsList = container.querySelector('.property-contacts-list');
+            
+            // Fetch property contacts
+            fetch(`/api/properties/${propertyId}/contacts`)
+                .then(response => response.json())
+                .then(data => {
+                    // Hide spinner
+                    spinner.style.display = 'none';
+                    
+                    // Display contacts
+                    if (data.length === 0) {
+                        contactsList.innerHTML = '<div class="alert alert-info">No contacts assigned to this property yet.</div>';
+                    } else {
+                        let html = '<div class="list-group">';
+                        data.forEach(contact => {
+                            const relationshipBadge = getRelationshipBadge(contact.relationship_type);
+                            html += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">${contact.name}</h6>
+                                        <p class="mb-1 text-muted">
+                                            ${contact.email ? `<i class="fas fa-envelope me-1"></i>${contact.email}` : ''}
+                                            ${contact.email && contact.phone ? ' | ' : ''}
+                                            ${contact.phone ? `<i class="fas fa-phone me-1"></i>${contact.phone}` : ''}
+                                        </p>
+                                        ${relationshipBadge}
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger remove-relationship-btn" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#removeRelationshipModal"
+                                            data-contact-id="${contact.contact_id}"
+                                            data-property-id="${propertyId}"
+                                            data-relationship-type="${contact.relationship_type}">
+                                        <i class="fas fa-unlink me-1"></i>Remove
+                                    </button>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        contactsList.innerHTML = html;
+                        
+                        // Set up remove relationship buttons
+                        const removeButtons = contactsList.querySelectorAll('.remove-relationship-btn');
+                        removeButtons.forEach(button => {
+                            button.addEventListener('click', function() {
+                                const contactId = this.getAttribute('data-contact-id');
+                                const propertyId = this.getAttribute('data-property-id');
+                                const relationshipType = this.getAttribute('data-relationship-type');
+                                
+                                document.getElementById('remove-contact-id').value = contactId;
+                                document.getElementById('remove-property-id').value = propertyId;
+                                document.getElementById('remove-relationship-type').value = relationshipType;
+                            });
+                        });
+                    }
+                    
+                    // Show contacts list
+                    contactsList.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching property contacts:', error);
+                    spinner.style.display = 'none';
+                    contactsList.innerHTML = '<div class="alert alert-danger">Error loading contacts for this property.</div>';
+                    contactsList.style.display = 'block';
+                });
+        });
+    });
+    
+    // Helper function to get relationship badge
+    function getRelationshipBadge(type) {
+        let badgeClass = '';
+        switch (type) {
+            case 'owner':
+                badgeClass = 'bg-primary';
+                break;
+            case 'manager':
+                badgeClass = 'bg-success';
+                break;
+            case 'tenant':
+                badgeClass = 'bg-info';
+                break;
+            case 'emergency':
+                badgeClass = 'bg-warning';
+                break;
+            default:
+                badgeClass = 'bg-secondary';
+        }
+        
+        return `<span class="badge ${badgeClass}">${type.charAt(0).toUpperCase() + type.slice(1)}</span>`;
+    }
+});
+</script>
+{% endblock %}
