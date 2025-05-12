@@ -147,7 +147,7 @@
                             <td>
                                 {% if is_expense %}
                                 <!-- For outgoing expenses -->
-                                <select class="form-select expense-select" name="expense_{{ payment.transaction_id }}">
+                                <select class="form-select expense-select" name="expense_id">
                                     <option value="">-- Select Expense --</option>
                                     {% for expense in unpaid_expenses %}
                                     <option value="{{ expense.id }}" 

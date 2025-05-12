@@ -145,7 +145,8 @@ def reconciliation():
                                 'transaction_id': payment['transaction_id'],
                                 'is_duplicate': payment.get('is_duplicate', False),
                                 'suggested_property_id': payment.get('suggested_property', {}).get('id') if payment.get('suggested_property') else None,
-                                'suggested_fee_id': payment.get('suggested_fee', {}).get('id') if payment.get('suggested_fee') else None
+                                'suggested_fee_id': payment.get('suggested_fee', {}).get('id') if payment.get('suggested_fee') else None,
+                                'suggested_expense_id': payment.get('suggested_expense', {}).get('id') if payment.get('suggested_expense') else None
                             }
                             for payment in analyzed_payments
                         ]
@@ -178,6 +179,7 @@ def reconciliation():
             transaction_ids = request.form.getlist('transaction_id')
             property_ids = request.form.getlist('property_id')
             fee_ids = request.form.getlist('fee_id')
+            expense_ids = request.form.getlist('expense_id')
             exclude_flags = request.form.getlist('exclude')
             
             confirmed_count = 0
@@ -192,8 +194,28 @@ def reconciliation():
                 # Get form data
                 property_id = property_ids[i] if property_ids[i] else None
                 fee_id = fee_ids[i] if fee_ids[i] and fee_ids[i] != "null" else None
+                expense_id = expense_ids[i] if i < len(expense_ids) and expense_ids[i] and expense_ids[i] != "null" else None
                 
-                # Skip if no property selected
+                # For outgoing payments/expenses
+                if expense_id:
+                    # Mark the expense as paid
+                    expense = Expense.query.get(expense_id)
+                    if expense:
+                        expense.paid = True
+                        expense.paid_date = datetime.now()
+                        
+                        # Log the activity
+                        log_activity(
+                            event_type='expense_paid',
+                            description=f'Expense "{expense.name}" of ${expense.amount} marked as paid',
+                            related_type='Expense',
+                            related_id=expense.id
+                        )
+                        
+                        confirmed_count += 1
+                        continue
+
+                # For incoming payments - skip if no property selected
                 if not property_id:
                     continue
                 
