@@ -196,7 +196,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if fee.paid %}
+                                    {% if fee_payments >= fee.amount %}
                                     <span class="badge bg-success">Paid ✅</span>
                                     {% elif fee_payments > 0 %}
                                     <span class="badge bg-warning text-dark">Partial 🟠</span>

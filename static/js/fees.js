@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Create status badge
                     let statusBadge;
-                    if (paymentStatus === 'paid') {
+                    if (totalPaid >= fee.amount) {
                         statusBadge = '<span class="badge bg-success">Paid ✅</span>';
-                    } else if (paymentStatus === 'partial') {
+                    } else if (totalPaid > 0) {
                         statusBadge = '<span class="badge bg-warning text-dark">Partial 🟠</span>';
                     } else {
                         statusBadge = '<span class="badge bg-danger">Unpaid 🔴</span>';
