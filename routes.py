@@ -229,22 +229,28 @@ def reconciliation():
                 # Debug info
                 print(f"Transaction {i}: Property ID={property_id}, Fee ID={fee_id}, Expense ID={expense_id}")
                 
-                # Get the amount from the session data rather than form
+                # Get the amount directly from hidden form field
                 try:
-                    amount_list = request.form.getlist('amount')
+                    # Get amount from the hidden input field
+                    amount_key = f'amount'
+                    amount_list = request.form.getlist(amount_key)
+                    
+                    # Find the correct amount at the same index
                     if i < len(amount_list):
                         amount = float(amount_list[i])
                     else:
-                        # Try to get from session data if available
+                        # Fallback to session data
                         session_transactions = session.get('transactions', [])
-                        if i < len(session_transactions):
-                            amount = float(session_transactions[i]['amount'])
+                        for tx in session_transactions:
+                            if tx.get('transaction_id') == transaction_id:
+                                amount = float(tx.get('amount', 0))
+                                print(f"Found transaction {transaction_id} with amount {amount} from session")
+                                break
                         else:
-                            # Default to 0 if we can't find it
                             amount = 0
-                            print(f"WARNING: Could not find amount for transaction {i}")
+                            print(f"WARNING: Could not find amount for transaction ID {transaction_id}")
                 except (ValueError, IndexError) as e:
-                    print(f"Error getting amount for transaction {i}: {str(e)}")
+                    print(f"Error getting amount for transaction {transaction_id}: {str(e)}")
                     amount = 0
                 
                 is_expense = amount < 0
@@ -259,20 +265,31 @@ def reconciliation():
                     if expense:
                         print(f"Found expense to mark as paid: ID={expense.id}, Name={expense.name}, Amount=${expense.amount}")
                         
+                        # Mark the expense as paid and record the date
                         expense.paid = True
                         expense.paid_date = datetime.now()
                         expense.matched_transaction_id = transaction_id
                         
                         # Log the activity
+                        actual_amount = abs(amount) # Amount is negative, so take absolute value
                         log_activity(
                             event_type='expense_paid',
-                            description=f'Expense "{expense.name}" of ${expense.amount} marked as paid through bank reconciliation',
+                            description=f'Expense "{expense.name}" of ${expense.amount} marked as paid through bank reconciliation (Transaction amount: ${actual_amount})',
                             related_type='Expense',
                             related_id=expense.id
                         )
                         
+                        # Commit the transaction immediately
                         db.session.commit()
                         confirmed_count += 1
+                        
+                        # For debugging
+                        all_expenses = Expense.query.all()
+                        print(f"After update, {len(all_expenses)} expenses in database")
+                        for exp in all_expenses:
+                            print(f"  Expense ID={exp.id}, Name={exp.name}, Amount=${exp.amount}, Paid={exp.paid}")
+                        
+                        # Skip the rest of the processing for this negative transaction
                         continue
                     else:
                         print(f"ERROR: Could not find expense with ID {expense_id}")
