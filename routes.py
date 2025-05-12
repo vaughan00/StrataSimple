@@ -177,9 +177,32 @@ def reconciliation():
         elif request.form.get('action') == 'confirm_matches':
             # Process the transactions
             transaction_ids = request.form.getlist('transaction_id')
-            property_ids = request.form.getlist('property_id')
-            fee_ids = request.form.getlist('fee_id')
-            expense_ids = request.form.getlist('expense_id')
+            
+            # These lists will be populated dynamically for each transaction
+            property_ids = []
+            fee_ids = []
+            expense_ids = []
+            
+            # Get all the properties and fees for each transaction
+            for t_id in transaction_ids:
+                property_key = f'property_{t_id}'
+                fee_key = f'fee_{t_id}'
+                expense_key = f'expense_{t_id}'
+                
+                property_id = request.form.get(property_key, '')
+                fee_id = request.form.get(fee_key, '')
+                expense_id = request.form.get(expense_key, '')
+                
+                # Add to appropriate lists
+                property_ids.append(property_id)
+                fee_ids.append(fee_id)
+                expense_ids.append(expense_id)
+                
+            # Debug the collected IDs
+            print(f"Processing {len(transaction_ids)} transactions")
+            print(f"Property IDs: {property_ids}")
+            print(f"Fee IDs: {fee_ids}")
+            print(f"Expense IDs: {expense_ids}")
             
             confirmed_count = 0
             excluded_count = 0
