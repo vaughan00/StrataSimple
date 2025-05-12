@@ -1,55 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Fetch properties data for table and charts
+    // Fetch data for charts
     fetch('/api/properties')
         .then(response => response.json())
         .then(data => {
-            initializePropertiesTable(data);
             initializeBalancesChart(data);
             initializeFeesVsPaymentsChart(data);
         })
         .catch(error => console.error('Error fetching properties data:', error));
-    
-    // Initialize Properties Table with Tabulator
-    function initializePropertiesTable(data) {
-        new Tabulator("#propertiesTable", {
-            data: data,
-            layout: "fitColumns",
-            responsiveLayout: "collapse",
-            pagination: "local",
-            paginationSize: 10,
-            columns: [
-                {title: "Unit", field: "unit_number", sorter: "string", headerFilter: true},
-                {title: "Owner", field: "owner_name", sorter: "string", headerFilter: true},
-                {
-                    title: "Balance", 
-                    field: "balance", 
-                    sorter: "number",
-                    formatter: function(cell) {
-                        const value = cell.getValue();
-                        const formattedValue = '$' + value.toFixed(2);
-                        return `<span class="${value < 0 ? 'text-danger' : 'text-success'}">${formattedValue}</span>`;
-                    }
-                },
-                {
-                    title: "Unpaid Fees", 
-                    field: "unpaid_fees", 
-                    sorter: "number",
-                    formatter: function(cell) {
-                        const value = cell.getValue();
-                        return value > 0 ? `<span class="text-danger">$${value.toFixed(2)}</span>` : '$0.00';
-                    }
-                },
-                {
-                    title: "Total Payments", 
-                    field: "total_payments", 
-                    sorter: "number",
-                    formatter: function(cell) {
-                        return '$' + cell.getValue().toFixed(2);
-                    }
-                }
-            ]
-        });
-    }
     
     // Initialize Balances Chart
     function initializeBalancesChart(data) {
