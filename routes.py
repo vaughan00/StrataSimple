@@ -282,12 +282,16 @@ def get_period_fees(period_id):
         owner = property.get_owner()
         owner_name = owner.name if owner else "No owner assigned"
         
+        # Get payments associated with this fee
+        payments = fee.payments if hasattr(fee, 'payments') else []
+        
         fees_data.append({
             'id': fee.id,
             'unit_number': property.unit_number,
             'owner_name': owner_name,
             'amount': fee.amount,
-            'paid': fee.paid
+            'paid': fee.paid,
+            'payments': [{'amount': payment.amount, 'date': payment.date.strftime('%Y-%m-%d')} for payment in payments]
         })
     
     return jsonify(fees_data)
