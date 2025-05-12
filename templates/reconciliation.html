@@ -118,7 +118,7 @@
                         {% for payment in transactions %}
                         {% set is_expense = payment.amount < 0 %}
                 <!-- Debug info to verify transaction data -->
-                <!-- <small class="text-muted">Type: {% if is_expense %}Expense{% else %}Payment{% endif %}, Amount: {{ payment.amount }}</small> -->
+                <small class="text-muted">Type: {% if is_expense %}Expense{% else %}Payment{% endif %}, Amount: {{ payment.amount }}</small>
                         <tr data-duplicate="{{ payment.is_duplicate|lower }}" 
                             data-suggested="{{ (payment.suggested_property is not none or payment.suggested_expense is not none)|lower }}"
                             data-expense="{{ is_expense|lower }}" 
@@ -226,21 +226,25 @@
                                 {% if payment.is_duplicate %}
                                 <!-- Allow selection even for possible duplicates -->
                                 {% endif %}
+                                <!-- Radio buttons for mutually exclusive actions -->
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="confirm_transactions" id="confirm_{{ payment.transaction_id }}" 
-                                            value="{{ payment.transaction_id }}" 
+                                    <input class="form-check-input" type="radio" name="action_{{ payment.transaction_id }}" id="confirm_{{ payment.transaction_id }}" 
+                                            value="confirm" 
                                             {% if (payment.suggested_property and not is_expense) or (payment.suggested_expense and is_expense) %}checked{% endif %}>
                                     <label class="form-check-label" for="confirm_{{ payment.transaction_id }}">
                                         Confirm
                                     </label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input exclude-checkbox" type="checkbox" name="exclude_transactions" id="exclude_{{ payment.transaction_id }}" 
-                                            value="{{ payment.transaction_id }}">
+                                    <input class="form-check-input" type="radio" name="action_{{ payment.transaction_id }}" id="exclude_{{ payment.transaction_id }}" 
+                                            value="exclude">
                                     <label class="form-check-label" for="exclude_{{ payment.transaction_id }}">
                                         Exclude
                                     </label>
                                 </div>
+                                
+                                <!-- Hidden inputs for form processing -->
+                                <input type="hidden" name="transaction_id" value="{{ payment.transaction_id }}">
                             </td>
                         </tr>
                         {% endfor %}

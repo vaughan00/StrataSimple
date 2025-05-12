@@ -175,20 +175,27 @@ def reconciliation():
                 
         # Handle transaction confirmation form
         elif request.form.get('action') == 'confirm_matches':
-            # Process the confirmed transactions
+            # Process the transactions
             transaction_ids = request.form.getlist('transaction_id')
             property_ids = request.form.getlist('property_id')
             fee_ids = request.form.getlist('fee_id')
             expense_ids = request.form.getlist('expense_id')
-            exclude_flags = request.form.getlist('exclude')
             
             confirmed_count = 0
             excluded_count = 0
             
             for i, transaction_id in enumerate(transaction_ids):
+                # Check if this transaction is to be confirmed or excluded
+                action_key = f'action_{transaction_id}'
+                action = request.form.get(action_key)
+                
                 # Skip if excluded
-                if str(i) in exclude_flags:
+                if action == 'exclude':
                     excluded_count += 1
+                    continue
+                
+                # Skip if not confirmed
+                if action != 'confirm':
                     continue
                 
                 # Get form data
