@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(property => {
                     const option = document.createElement('option');
                     option.value = property.id;
-                    option.textContent = `Unit ${property.unit_number} - ${property.owner_name}`;
+                    option.textContent = `${property.unit_number} - ${property.owner_name}`;
                     propertySelect.appendChild(option);
                 });
             })

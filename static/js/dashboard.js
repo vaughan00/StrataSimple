@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('balancesChart').getContext('2d');
         
         // Extract data for chart
-        const unitNumbers = data.map(property => 'Unit ' + property.unit_number);
+        const unitNumbers = data.map(property => property.unit_number);
         const balances = data.map(property => property.balance);
         
         // Create color array (red for negative, green for positive)
