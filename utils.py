@@ -127,11 +127,27 @@ def suggest_property_matches(payments):
         match_confidence = 0  # 0-100 scale
         
         for prop in properties:
-            # Check if unit number is in the text
-            unit_pattern = re.compile(r'\b' + re.escape(prop.unit_number.lower()) + r'\b')
+            # Check for various unit number patterns (with and without the word "unit")
+            unit_number = prop.unit_number.lower()
+            
+            # Direct match: exact unit number
+            unit_pattern = re.compile(r'\b' + re.escape(unit_number) + r'\b')
             if unit_pattern.search(text_to_search):
                 matched_property = prop
                 match_confidence = 90  # High confidence for exact unit number match
+                break
+                
+            # Pattern with "unit" word: "unit X", "unit: X", etc.
+            unit_word_pattern = re.compile(r'\bunit\s*[\s:]?\s*' + re.escape(unit_number) + r'\b', re.IGNORECASE)
+            if unit_word_pattern.search(text_to_search):
+                matched_property = prop
+                match_confidence = 90  # High confidence for unit pattern match
+                break
+                
+            # Simple numeric match for short descriptions
+            if unit_number.isdigit() and unit_number in text_to_search and len(text_to_search) < 10:
+                matched_property = prop
+                match_confidence = 80  # Good confidence for numeric match in short text
                 break
             
             # Check if there's an owner contact for this property
@@ -143,6 +159,12 @@ def suggest_property_matches(payments):
                     matched_property = prop
                     match_confidence = 70  # Medium confidence for owner name match
                     break
+                    
+            # Check for "strata fee" as a generic match for any property
+            if "strata fee" in text_to_search or "fee" in text_to_search:
+                matched_property = prop
+                match_confidence = 50  # Lower confidence for generic fee mention
+                # Don't break, keep looking for better matches
         
         # Add property suggestion to payment
         if matched_property:
