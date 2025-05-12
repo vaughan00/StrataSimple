@@ -21,6 +21,12 @@ def index():
     recent_payments = Payment.query.order_by(Payment.date.desc()).limit(5).all()
     recent_fees = Fee.query.order_by(Fee.date.desc()).limit(5).all()
     
+    # Debug info
+    print("RECENT FEES INFO:")
+    for fee in recent_fees:
+        payment_total = sum(payment.amount for payment in fee.payments) if hasattr(fee, 'payments') and fee.payments else 0
+        print(f"  Fee ID: {fee.id}, Amount: {fee.amount}, Paid status: {fee.paid}, Payments: {payment_total}")
+    
     return render_template('dashboard.html', 
                            properties=properties, 
                            total_balance=total_balance,
