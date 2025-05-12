@@ -23,10 +23,19 @@ def index():
     total_paid = db.session.query(db.func.sum(Payment.amount)).scalar() or 0
     
     # Calculate fees due now (where due_date <= today)
+    # Create a date-only version of today for proper comparison
+    today_date_only = today.replace(hour=0, minute=0, second=0, microsecond=0)
     due_now = db.session.query(db.func.sum(Fee.amount - Fee.paid_amount)) \
               .filter(Fee.paid == False) \
-              .filter(Fee.due_date <= today) \
+              .filter(Fee.due_date <= today_date_only) \
               .scalar() or 0
+    
+    # Print debugging information
+    print(f"TODAY: {today}, TODAY_DATE_ONLY: {today_date_only}")
+    overdue_fees = Fee.query.filter(Fee.paid == False, Fee.due_date <= today_date_only).all()
+    print(f"OVERDUE FEES: {len(overdue_fees)} fees are overdue")
+    for fee in overdue_fees:
+        print(f"  Fee ID: {fee.id}, Due date: {fee.due_date}, Amount: {fee.amount}, Property: {fee.property_id}")
     
     # Get recent payments and fees
     recent_payments = Payment.query.order_by(Payment.date.desc()).limit(5).all()

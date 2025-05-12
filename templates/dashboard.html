@@ -114,9 +114,8 @@
                     
                     {% for fee in property.fees %}
                         {% if not fee.paid %}
-                            {# Convert datetime to string for comparison #}
                             {% if fee.due_date %}
-                                {% if fee.due_date|string <= today|string %}
+                                {% if fee.due_date <= today %}
                                     {% set overdue_amount = overdue_amount + (fee.amount - (fee.paid_amount or 0)) %}
                                 {% endif %}
                             {% endif %}
