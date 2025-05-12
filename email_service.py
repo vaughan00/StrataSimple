@@ -83,12 +83,50 @@ def send_email(to_email, subject, text_content, html_content=None, cc=None, bcc=
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.ehlo()
         server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        
+        # Debug info for troubleshooting
+        print(f"Attempting to connect to {SMTP_SERVER}:{SMTP_PORT} with username: {SMTP_USERNAME}")
+        
+        # Special handling for Gmail
+        if SMTP_SERVER.lower() == "smtp.gmail.com":
+            try:
+                # Try with OAuth2 style auth for Gmail - newer accounts require this
+                import base64
+                from email.utils import formataddr
+                
+                # Use different authentication method required by many Gmail accounts
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                
+                # When using Gmail, ensure the sender email is the same as the authenticated account
+                # otherwise Gmail may reject the message or change the from address
+                if EMAIL_SENDER != SMTP_USERNAME and not EMAIL_SENDER.endswith('@gmail.com'):
+                    orig_sender = EMAIL_SENDER
+                    EMAIL_SENDER = SMTP_USERNAME
+                    msg.replace_header("From", formataddr(("StrataHub", EMAIL_SENDER)))
+                    print(f"Note: Changed sender from {orig_sender} to {EMAIL_SENDER} to comply with Gmail requirements")
+            
+            except Exception as gmail_error:
+                print(f"Gmail authentication error: {gmail_error}")
+                print("Note: For Gmail, you need to use an 'App Password' generated in your Google Account settings.")
+                print("Visit https://myaccount.google.com/apppasswords to create one.")
+                return False
+        else:
+            # Standard SMTP authentication for non-Gmail servers
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        
+        # Send the email
         server.sendmail(EMAIL_SENDER, to_email, msg.as_string())
         server.close()
         return True
     except Exception as e:
         print(f"Failed to send email: {e}")
+        if "support.google.com/mail/?p=BadCredentials" in str(e):
+            print("\nImportant: For Gmail, you need to use an 'App Password' instead of your regular password.")
+            print("1. Visit https://myaccount.google.com/apppasswords")
+            print("2. Sign in with your Google Account")
+            print("3. Select 'App passwords' under 'Security'")
+            print("4. Generate a new App Password for 'Mail' on 'Other'")
+            print("5. Use that 16-character password as your SMTP_PASSWORD\n")
         return False
 
 def send_fee_notification(fee, contact):
