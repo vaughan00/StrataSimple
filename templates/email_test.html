@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Email Test - StrataHub</title>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">Email System Test</h1>
+        <p class="text-muted">Test the email configuration and send test emails</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Email Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <th>SMTP Server</th>
+                            <td>{{ smtp_server }}</td>
+                        </tr>
+                        <tr>
+                            <th>SMTP Port</th>
+                            <td>{{ smtp_port }}</td>
+                        </tr>
+                        <tr>
+                            <th>SMTP Username</th>
+                            <td>{{ smtp_username|default('Not configured', true) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email Sender</th>
+                            <td>{{ email_sender|default('Not configured', true) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Reply-To Address</th>
+                            <td>{{ email_reply_to|default('Not configured', true) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>
+                                {% if is_configured %}
+                                <span class="badge bg-success">Configured</span>
+                                {% else %}
+                                <span class="badge bg-danger">Not Configured</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                {% if not is_configured %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> Email is not fully configured. Set the required environment variables.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Send Test Email</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('test_email') }}">
+                    <div class="mb-3">
+                        <label for="test_email" class="form-label">Recipient Email</label>
+                        <input type="email" class="form-control" id="test_email" name="test_email" 
+                               required placeholder="Enter email address">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" 
+                            {% if not is_configured %}disabled{% endif %}>
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Send Test Email
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        {% if email_templates %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Email Templates</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('test_template') }}">
+                    <div class="mb-3">
+                        <label for="template_type" class="form-label">Template Type</label>
+                        <select class="form-select" id="template_type" name="template_type" required>
+                            <option value="" selected disabled>Select a template</option>
+                            <option value="fee_notification">Fee Notification</option>
+                            <option value="payment_receipt">Payment Receipt</option>
+                            <option value="overdue_reminder">Overdue Reminder</option>
+                            <option value="expense_notification">Expense Notification</option>
+                            <option value="financial_summary">Financial Summary</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="recipient_email" class="form-label">Recipient Email</label>
+                        <input type="email" class="form-control" id="recipient_email" name="recipient_email" 
+                               required placeholder="Enter email address">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-info" 
+                            {% if not is_configured %}disabled{% endif %}>
+                        <i class="fas fa-envelope me-2"></i>
+                        Test Template
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

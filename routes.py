@@ -8,6 +8,7 @@ from io import StringIO
 from app import app, db
 from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense
 from utils import process_csv, analyze_payments, log_activity, reconcile_expenses
+import email_service
 
 @app.route('/')
 def index():
@@ -1303,3 +1304,124 @@ def download_invoice(expense_id):
         expense.invoice_filename,
         as_attachment=True
     )
+
+#
+# Email System Routes
+#
+
+@app.route('/email/test', methods=['GET', 'POST'])
+def test_email():
+    """Page to test email functionality and configuration."""
+    # Check if SMTP is configured
+    is_configured = bool(email_service.SMTP_USERNAME and email_service.SMTP_PASSWORD)
+    
+    if request.method == 'POST':
+        test_email = request.form.get('test_email')
+        
+        if test_email:
+            # Try to send a test email
+            success = email_service.send_email(
+                test_email,
+                "StrataHub Test Email",
+                "This is a test email from StrataHub to verify the email configuration is working correctly.",
+                html_content="""
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <h2>StrataHub Test Email</h2>
+                    <p>This is a test email from StrataHub to verify the email configuration is working correctly.</p>
+                    <p>If you received this email, the email system is working properly!</p>
+                    <hr>
+                    <p><em>This is an automated test message.</em></p>
+                </body>
+                </html>
+                """
+            )
+            
+            if success:
+                flash(f"Test email successfully sent to {test_email}!", "success")
+                # Log activity
+                log_activity(
+                    event_type='email_test',
+                    description=f'Test email sent to {test_email}',
+                )
+            else:
+                flash(f"Failed to send test email. Check server logs for details.", "danger")
+        
+        return redirect(url_for('test_email'))
+    
+    # For GET requests, show the test page
+    return render_template(
+        'email_test.html',
+        smtp_server=email_service.SMTP_SERVER,
+        smtp_port=email_service.SMTP_PORT,
+        smtp_username=email_service.SMTP_USERNAME,
+        email_sender=email_service.EMAIL_SENDER,
+        email_reply_to=email_service.EMAIL_REPLY_TO,
+        is_configured=is_configured,
+        email_templates=True  # For future template testing
+    )
+
+@app.route('/email/template/test', methods=['POST'])
+def test_template():
+    """Test sending an email using a specific template."""
+    template_type = request.form.get('template_type')
+    recipient_email = request.form.get('recipient_email')
+    
+    if not template_type or not recipient_email:
+        flash("Both template type and recipient email are required.", "danger")
+        return redirect(url_for('test_email'))
+    
+    # Find a sample item for the template
+    success = False
+    
+    if template_type == 'fee_notification':
+        # Get a sample fee
+        fee = Fee.query.first()
+        if fee and fee.property:
+            # Create a temporary contact for testing
+            temp_contact = Contact(name="Test Recipient", email=recipient_email)
+            success = email_service.send_fee_notification(fee, temp_contact)
+            
+    elif template_type == 'payment_receipt':
+        # Get a sample payment
+        payment = Payment.query.filter(Payment.property_id.isnot(None)).first()
+        if payment and payment.property:
+            # Create a temporary contact for testing
+            temp_contact = Contact(name="Test Recipient", email=recipient_email)
+            success = email_service.send_payment_receipt(payment, temp_contact)
+            
+    elif template_type == 'overdue_reminder':
+        # Get an overdue fee
+        today = datetime.now()
+        fee = Fee.query.filter(Fee.due_date < today, Fee.paid == False).first()
+        if not fee:  # If no overdue fee, get any fee
+            fee = Fee.query.filter(Fee.property_id.isnot(None)).first()
+        
+        if fee and fee.property:
+            # Create a temporary contact for testing
+            temp_contact = Contact(name="Test Recipient", email=recipient_email)
+            success = email_service.send_overdue_reminder(fee, temp_contact)
+            
+    elif template_type == 'expense_notification':
+        # Get a sample expense
+        expense = Expense.query.first()
+        if expense:
+            success = email_service.send_expense_paid_notification(expense, [recipient_email])
+            
+    elif template_type == 'financial_summary':
+        # Get properties for summary
+        properties = Property.query.all()
+        if properties:
+            success = email_service.send_financial_summary(properties, [recipient_email], "Test Period")
+    
+    if success:
+        flash(f"Test template email ({template_type}) sent successfully to {recipient_email}!", "success")
+        # Log activity
+        log_activity(
+            event_type='email_template_test',
+            description=f'Test {template_type} template email sent to {recipient_email}',
+        )
+    else:
+        flash(f"Failed to send template email. Check server logs for details.", "danger")
+    
+    return redirect(url_for('test_email'))
