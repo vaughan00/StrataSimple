@@ -144,7 +144,7 @@
                     {% for property in properties %}
                     <tr>
                         <td>{{ property.unit_number }}</td>
-                        <td>{{ property.owner_name }}</td>
+                        <td>{% if property.get_owner() %}{{ property.get_owner().name }}{% else %}<span class="text-warning">No owner assigned</span>{% endif %}</td>
                         <td class="{{ 'text-danger' if property.balance < 0 else 'text-success' }}">
                             ${{ "%.2f"|format(property.balance) }}
                         </td>
