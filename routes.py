@@ -488,10 +488,21 @@ def setup():
             for assoc in property.contact_associations:
                 db.session.delete(assoc)
             
+            unit_number = property.unit_number
+            property_id = property.id
+            
             db.session.delete(property)
             db.session.commit()
             
-            flash(f'Property {property.unit_number} deleted successfully', 'success')
+            # Log the activity
+            log_activity(
+                event_type='property_deleted',
+                description=f'Property {unit_number} was deleted from the system',
+                related_type='Property',
+                related_id=property_id
+            )
+            
+            flash(f'Property {unit_number} deleted successfully', 'success')
             return redirect(url_for('setup'))
             
         elif action == 'bulk_add':
@@ -565,6 +576,14 @@ def contacts():
             db.session.add(new_contact)
             db.session.commit()
             
+            # Log the activity
+            log_activity(
+                event_type='contact_added',
+                description=f'Contact {name} was added to the system',
+                related_type='Contact',
+                related_id=new_contact.id
+            )
+            
             flash(f'Contact {name} added successfully', 'success')
             return redirect(url_for('contacts'))
             
@@ -581,6 +600,14 @@ def contacts():
             
             db.session.commit()
             
+            # Log the activity
+            log_activity(
+                event_type='contact_updated',
+                description=f'Contact {contact.name} was updated',
+                related_type='Contact',
+                related_id=contact.id
+            )
+            
             flash(f'Contact {contact.name} updated successfully', 'success')
             return redirect(url_for('contacts'))
             
@@ -593,10 +620,21 @@ def contacts():
             for assoc in contact.property_associations:
                 db.session.delete(assoc)
             
+            contact_name = contact.name
+            contact_id = contact.id
+            
             db.session.delete(contact)
             db.session.commit()
             
-            flash(f'Contact {contact.name} deleted successfully', 'success')
+            # Log the activity
+            log_activity(
+                event_type='contact_deleted',
+                description=f'Contact {contact_name} was deleted from the system',
+                related_type='Contact',
+                related_id=contact_id
+            )
+            
+            flash(f'Contact {contact_name} deleted successfully', 'success')
             return redirect(url_for('contacts'))
             
         elif action == 'assign_property':
