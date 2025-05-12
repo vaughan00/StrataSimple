@@ -12,6 +12,40 @@ document.addEventListener('DOMContentLoaded', function() {
     endDate.setMonth(endDate.getMonth() + 3);
     endDateInput.valueAsDate = endDate;
     
+    // Fee type change handler to show/hide relevant fields
+    const feeTypeSelect = document.getElementById('fee_type');
+    const billingPeriodFields = document.getElementById('billing_period_fields');
+    const propertySelectionDiv = document.getElementById('property_selection');
+    const feeInfoAlert = document.getElementById('fee_info');
+    const periodNameInput = document.getElementById('period_name');
+    
+    feeTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        
+        // Show/hide relevant sections based on fee type
+        if (selectedType === 'billing_period') {
+            billingPeriodFields.style.display = 'block';
+            propertySelectionDiv.style.display = 'none';
+            feeInfoAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i> The fee per unit will be charged to each property equally.';
+            periodNameInput.required = true;
+            startDateInput.required = true;
+            endDateInput.required = true;
+        } else {
+            billingPeriodFields.style.display = 'none';
+            propertySelectionDiv.style.display = 'block';
+            
+            if (selectedType === 'opening_balance') {
+                feeInfoAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i> Set opening balances for selected properties.';
+            } else {
+                feeInfoAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ad hoc fees will be applied to selected properties only.';
+            }
+            
+            periodNameInput.required = false;
+            startDateInput.required = false;
+            endDateInput.required = false;
+        }
+    });
+    
     // Initialize fee tables for each billing period
     const feeTableContainers = document.querySelectorAll('.fees-table-container');
     
@@ -67,6 +101,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="fas fa-check me-1"></i>Mark Paid
                         </button>` : '';
                     
+                    // Format fee type for display
+                    let feeTypeBadge = '';
+                    if (fee.fee_type === 'billing_period') {
+                        feeTypeBadge = '<span class="badge bg-primary">Billing Period</span>';
+                    } else if (fee.fee_type === 'opening_balance') {
+                        feeTypeBadge = '<span class="badge bg-secondary">Opening Balance</span>';
+                    } else if (fee.fee_type === 'ad_hoc') {
+                        feeTypeBadge = '<span class="badge bg-info">Ad Hoc</span>';
+                    } else {
+                        feeTypeBadge = '<span class="badge bg-primary">Billing Period</span>';
+                    }
+                    
                     // Set row HTML
                     row.innerHTML = `
                         <td>${fee.unit_number}</td>
@@ -76,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             `<span class="text-danger">$${remaining.toFixed(2)}</span>` : 
                             `<span class="text-success">$0.00</span>`}
                         </td>
+                        <td>${feeTypeBadge}</td>
                         <td>${statusBadge}</td>
                         <td>${actionButton}</td>
                     `;

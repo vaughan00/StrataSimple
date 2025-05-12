@@ -107,6 +107,7 @@ class Fee(db.Model):
     description = db.Column(db.String(200))
     period = db.Column(db.String(50))  # e.g., "Q1 2023", "July 2023"
     paid = db.Column(db.Boolean, default=False)
+    fee_type = db.Column(db.String(50), default="billing_period")  # Options: billing_period, opening_balance, ad_hoc
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):

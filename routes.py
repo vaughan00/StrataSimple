@@ -216,58 +216,96 @@ def fees():
     periods = BillingPeriod.query.order_by(BillingPeriod.start_date.desc()).all()
     
     if request.method == 'POST':
-        # Check if all properties have owners first
-        properties_without_owners = []
-        for prop in properties:
-            if not prop.get_owner():
-                properties_without_owners.append(prop.unit_number)
-                
-        if properties_without_owners:
-            flash(f'Cannot raise fees: The following properties have no assigned owners: {", ".join(properties_without_owners)}', 'danger')
-            return redirect(url_for('fees'))
-        
-        # Create new billing period
-        period_name = request.form.get('period_name')
-        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
-        end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
+        # Get fee type and amount
+        fee_type = request.form.get('fee_type')
         fee_per_unit = float(request.form.get('fee_per_unit'))
-        description = request.form.get('description')
+        description = request.form.get('description', '')
         
-        # Calculate total amount based on fee per unit
-        num_properties = len(properties)
-        total_amount = fee_per_unit * num_properties
-        
-        new_period = BillingPeriod(
-            name=period_name,
-            start_date=start_date,
-            end_date=end_date,
-            total_amount=total_amount,
-            description=description
-        )
-        db.session.add(new_period)
-        db.session.commit()
-        
-        # Create fees for all properties
-        for prop in properties:
-            # Use fee per unit directly
-            fee_amount = fee_per_unit
+        # Determine which properties to apply fees to
+        if fee_type == 'billing_period':
+            # Check if all properties have owners first
+            properties_without_owners = []
+            for prop in properties:
+                if not prop.get_owner():
+                    properties_without_owners.append(prop.unit_number)
+                    
+            if properties_without_owners:
+                flash(f'Cannot raise fees: The following properties have no assigned owners: {", ".join(properties_without_owners)}', 'danger')
+                return redirect(url_for('fees'))
             
+            # Create new billing period
+            period_name = request.form.get('period_name')
+            start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
+            end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
+            
+            # Calculate total amount based on fee per unit
+            num_properties = len(properties)
+            total_amount = fee_per_unit * num_properties
+            
+            new_period = BillingPeriod(
+                name=period_name,
+                start_date=start_date,
+                end_date=end_date,
+                total_amount=total_amount,
+                description=description
+            )
+            db.session.add(new_period)
+            db.session.commit()
+            
+            # Create fees for all properties
+            target_properties = properties
+            fee_description = f"Strata fee for {period_name}"
+            fee_date = start_date
+            fee_period = period_name
+        else:
+            # For opening_balance and ad_hoc fees, use selected properties
+            selected_property_ids = request.form.getlist('selected_properties')
+            
+            if not selected_property_ids:
+                flash('Please select at least one property to apply the fee to.', 'warning')
+                return redirect(url_for('fees'))
+            
+            target_properties = Property.query.filter(Property.id.in_(selected_property_ids)).all()
+            
+            # Set appropriate description and period
+            if fee_type == 'opening_balance':
+                fee_description = "Opening balance"
+                fee_period = "Opening Balance"
+            else:  # ad_hoc
+                fee_description = description if description else "Ad hoc fee"
+                fee_period = f"Ad Hoc {datetime.now().strftime('%Y-%m-%d')}"
+            
+            fee_date = datetime.now()
+        
+        # Create fees for target properties
+        for prop in target_properties:
+            # Skip properties without owners
+            if not prop.get_owner():
+                continue
+                
             new_fee = Fee(
                 property_id=prop.id,
-                amount=fee_amount,
-                date=start_date,
-                description=f"Strata fee for {period_name}",
-                period=period_name,
+                amount=fee_per_unit,
+                date=fee_date,
+                description=fee_description,
+                period=fee_period,
+                fee_type=fee_type,
                 paid=False
             )
             db.session.add(new_fee)
             
             # Update property balance
-            prop.balance -= fee_amount
+            prop.balance -= fee_per_unit
         
         db.session.commit()
         
-        flash(f'Successfully created {period_name} fees for all properties', 'success')
+        if fee_type == 'billing_period':
+            flash(f'Successfully created {period_name} fees for all properties', 'success')
+        elif fee_type == 'opening_balance':
+            flash(f'Successfully added opening balances to {len(target_properties)} properties', 'success')
+        else:
+            flash(f'Successfully added ad hoc fees to {len(target_properties)} properties', 'success')
+            
         return redirect(url_for('fees'))
     
     return render_template('fees.html', properties=properties, periods=periods)

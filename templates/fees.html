@@ -12,7 +12,7 @@
     </div>
 </div>
 
-<!-- New Billing Period Card -->
+<!-- New Fee Card -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">Raise New Strata Fees</h5>
@@ -21,8 +21,12 @@
         <form method="POST">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label for="period_name" class="form-label">Billing Period Name</label>
-                    <input type="text" class="form-control" id="period_name" name="period_name" required placeholder="e.g., Q1 2023 or July 2023">
+                    <label for="fee_type" class="form-label">Fee Type</label>
+                    <select class="form-select" id="fee_type" name="fee_type" required>
+                        <option value="billing_period">Billing Period (all properties)</option>
+                        <option value="opening_balance">Opening Balance (selected properties)</option>
+                        <option value="ad_hoc">Ad Hoc Fee (selected properties)</option>
+                    </select>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="fee_per_unit" class="form-label">Fee Per Unit</label>
@@ -32,27 +36,51 @@
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="start_date" class="form-label">Start Date</label>
-                    <input type="date" class="form-control" id="start_date" name="start_date" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="end_date" class="form-label">End Date</label>
-                    <input type="date" class="form-control" id="end_date" name="end_date" required>
+
+            <!-- Billing Period specific fields (shown/hidden based on fee type) -->
+            <div id="billing_period_fields">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="period_name" class="form-label">Billing Period Name</label>
+                        <input type="text" class="form-control" id="period_name" name="period_name" placeholder="e.g., Q1 2023 or July 2023">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date">
+                    </div>
                 </div>
             </div>
+
+            <!-- Property selection (shown/hidden based on fee type) -->
+            <div id="property_selection" class="mb-3" style="display: none;">
+                <label class="form-label">Select Properties</label>
+                <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                    {% for property in properties %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="selected_properties" value="{{ property.id }}" id="property-{{ property.id }}">
+                        <label class="form-check-label" for="property-{{ property.id }}">
+                            {{ property.unit_number }} {% if property.get_owner() %}- {{ property.get_owner().name }}{% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="2" placeholder="Optional description for this billing period"></textarea>
+                <textarea class="form-control" id="description" name="description" rows="2" placeholder="Optional description for this fee"></textarea>
             </div>
             
-            <div class="alert alert-info">
+            <div class="alert alert-info" id="fee_info">
                 <i class="fas fa-info-circle me-2"></i> The fee per unit will be charged to each property equally.
             </div>
             
             <button type="submit" class="btn btn-primary">
-                <i class="fas fa-money-bill-wave me-2"></i>Create Billing Period and Raise Fees
+                <i class="fas fa-money-bill-wave me-2"></i>Raise Fees
             </button>
         </form>
     </div>
