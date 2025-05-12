@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const today = new Date();
     const startDateInput = document.getElementById('start_date');
     const endDateInput = document.getElementById('end_date');
+    const billingDueDateInput = document.getElementById('billing_due_date');
+    const manualDueDateField = document.getElementById('manual_due_date_field');
+    const dueDateInput = document.getElementById('due_date');
     
     // Set start date to today
     startDateInput.valueAsDate = today;
@@ -11,6 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const endDate = new Date(today);
     endDate.setMonth(endDate.getMonth() + 3);
     endDateInput.valueAsDate = endDate;
+    
+    // Set default due date (30 days from start date)
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + 30);
+    billingDueDateInput.valueAsDate = dueDate;
+    dueDateInput.valueAsDate = dueDate;
+    
+    // Update billing period due date when start date changes
+    startDateInput.addEventListener('change', function() {
+        if (this.value) {
+            const startDate = new Date(this.value);
+            const newDueDate = new Date(startDate);
+            newDueDate.setDate(newDueDate.getDate() + 30);
+            billingDueDateInput.valueAsDate = newDueDate;
+        }
+    });
     
     // Fee type change handler to show/hide relevant fields
     const feeTypeSelect = document.getElementById('fee_type');
@@ -24,13 +43,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedType === 'billing_period') {
             billingPeriodFields.style.display = 'block';
             propertySelectionDiv.style.display = 'none';
+            manualDueDateField.style.display = 'none';
             feeInfoAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i> The fee per unit will be charged to each property equally.';
             periodNameInput.required = true;
             startDateInput.required = true;
             endDateInput.required = true;
+            dueDateInput.required = false;
+            billingDueDateInput.required = true;
         } else {
             billingPeriodFields.style.display = 'none';
             propertySelectionDiv.style.display = 'block';
+            manualDueDateField.style.display = 'block';
+            dueDateInput.required = true;
             
             if (selectedType === 'opening_balance') {
                 feeInfoAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i> Set opening balances for selected properties.';

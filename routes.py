@@ -238,6 +238,10 @@ def fees():
             start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
             end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
             
+            # Get due date (30 days from start date by default)
+            billing_due_date = datetime.strptime(request.form.get('billing_due_date'), '%Y-%m-%d')
+            fee_due_date = billing_due_date
+            
             # Calculate total amount based on fee per unit
             num_properties = len(properties)
             total_amount = fee_per_unit * num_properties
@@ -274,6 +278,9 @@ def fees():
             else:  # ad_hoc
                 fee_description = description if description else "Ad hoc fee"
                 fee_period = f"Ad Hoc {datetime.now().strftime('%Y-%m-%d')}"
+                
+            # Get manual due date for non-billing period fees
+            fee_due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
             
             fee_date = datetime.now()
         
@@ -287,10 +294,12 @@ def fees():
                 property_id=prop.id,
                 amount=fee_per_unit,
                 date=fee_date,
+                due_date=fee_due_date,
                 description=fee_description,
                 period=fee_period,
                 fee_type=fee_type,
-                paid=False
+                paid=False,
+                paid_amount=0.0
             )
             db.session.add(new_fee)
             
@@ -335,7 +344,10 @@ def get_period_fees(period_id):
             'owner_name': owner_name,
             'amount': fee.amount,
             'paid': fee.paid,
+            'paid_amount': fee.paid_amount if hasattr(fee, 'paid_amount') else 0.0,
             'fee_type': fee.fee_type if hasattr(fee, 'fee_type') else 'billing_period',  # Default to billing_period for existing fees
+            'date': fee.date.strftime('%Y-%m-%d'),
+            'due_date': fee.due_date.strftime('%Y-%m-%d') if hasattr(fee, 'due_date') and fee.due_date else None,
             'payments': [{'amount': payment.amount, 'date': payment.date.strftime('%Y-%m-%d')} for payment in payments]
         })
     
@@ -345,10 +357,28 @@ def get_period_fees(period_id):
 def mark_fee_paid(fee_id):
     """API endpoint to mark a fee as paid."""
     fee = Fee.query.get_or_404(fee_id)
-    fee.paid = True
+    
+    # Calculate total payments for this fee
+    total_payments = sum(payment.amount for payment in fee.payments)
+    
+    # Update the paid_amount field
+    fee.paid_amount = total_payments
+    
+    # Mark as paid if the total payments cover the fee amount
+    if total_payments >= fee.amount:
+        fee.paid = True
+    else:
+        # If partial payment, mark as not fully paid
+        fee.paid = False
+    
     db.session.commit()
     
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True, 
+        'paid': fee.paid, 
+        'paid_amount': fee.paid_amount,
+        'amount': fee.amount
+    })
 
 # Setup routes
 @app.route('/setup', methods=['GET', 'POST'])
