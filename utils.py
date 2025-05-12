@@ -344,6 +344,11 @@ def reconcile_expenses(transactions):
     """
     from models import Expense
     
+    # Debug the transaction data
+    print("EXPENSE MATCHING DEBUG:")
+    for i, t in enumerate(transactions):
+        print(f"Transaction {i}: Amount={t['amount']}, {'EXPENSE' if t['amount'] < 0 else 'INCOME'}")
+    
     # Only process negative transactions (outgoing payments)
     for transaction in transactions:
         # Skip positive transactions (incoming payments)

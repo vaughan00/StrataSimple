@@ -149,13 +149,18 @@
                                 <!-- For outgoing expenses -->
                                 <select class="form-select expense-select" name="expense_id">
                                     <option value="">-- Select Expense --</option>
-                                    {% for expense in unpaid_expenses %}
-                                    <option value="{{ expense.id }}" 
-                                        {% if payment.suggested_expense and payment.suggested_expense.id == expense.id %}selected{% endif %}>
-                                        {{ expense.name }} - ${{ "%.2f"|format(expense.amount) }}
-                                    </option>
-                                    {% endfor %}
+                                    {% if unpaid_expenses %}
+                                        {% for expense in unpaid_expenses %}
+                                        <option value="{{ expense.id }}">
+                                            {{ expense.name }} - ${{ "%.2f"|format(expense.amount) }}
+                                        </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No unpaid expenses found</option>
+                                    {% endif %}
                                 </select>
+                                <!-- Debug info for expenses -->
+                                <small class="text-muted d-block">Expense count: {{ unpaid_expenses|length }}</small>
                                 {% if payment.suggested_expense %}
                                 <small class="d-block mt-1 expense-match">
                                     <i class="fas fa-check-circle me-1"></i>Suggested expense match: 

@@ -203,8 +203,15 @@ def reconciliation():
                 fee_id = fee_ids[i] if fee_ids[i] and fee_ids[i] != "null" else None
                 expense_id = expense_ids[i] if i < len(expense_ids) and expense_ids[i] and expense_ids[i] != "null" else None
                 
+                # Check if this is a negative transaction (expense)
+                amount = float(request.form.getlist('amount')[i])
+                is_expense = amount < 0
+                
+                # Debug expense ID
+                print(f"Transaction {i}: Amount={amount}, Is Expense={is_expense}, Expense ID={expense_id}")
+                
                 # For outgoing payments/expenses
-                if expense_id:
+                if is_expense and expense_id:
                     # Mark the expense as paid
                     expense = Expense.query.get(expense_id)
                     if expense:
@@ -223,12 +230,12 @@ def reconciliation():
                         continue
 
                 # For incoming payments - skip if no property selected
-                if not property_id:
+                if not is_expense and not property_id:
                     continue
                 
                 # Get transaction details from form
                 date_str = request.form.getlist('date')[i]
-                amount = float(request.form.getlist('amount')[i])
+                # Amount was already parsed above
                 description = request.form.getlist('description')[i]
                 reference = request.form.getlist('reference')[i]
                 
