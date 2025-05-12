@@ -21,9 +21,9 @@ def create_seed_data():
         
         # Create properties
         properties = [
-            Property(unit_number="Unit 101", description="Corner unit with balcony", entitlement=1.2),
-            Property(unit_number="Unit 202", description="Two-bedroom with garden view", entitlement=1.0),
-            Property(unit_number="Unit 303", description="Penthouse with rooftop access", entitlement=1.5)
+            Property(unit_number="Unit 101", description="Corner unit with balcony"),
+            Property(unit_number="Unit 202", description="Two-bedroom with garden view"),
+            Property(unit_number="Unit 303", description="Penthouse with rooftop access")
         ]
         
         # Add properties to database
@@ -77,12 +77,12 @@ def create_seed_data():
         db.session.add(period)
         db.session.flush()
         
-        # Create fees for each property
-        total_entitlement = sum(prop.entitlement for prop in properties)
+        # Create fees for each property (equal distribution)
+        num_properties = len(properties)
         
         for prop in properties:
-            # Calculate fee based on entitlement
-            fee_amount = (prop.entitlement / total_entitlement) * period.total_amount
+            # Calculate fee (equal split among all properties)
+            fee_amount = period.total_amount / num_properties if num_properties > 0 else 0
             
             fee = Fee(
                 property_id=prop.id,

@@ -213,11 +213,12 @@ def fees():
         db.session.commit()
         
         # Calculate and create fees for all properties
-        total_entitlement = sum(prop.entitlement for prop in properties)
+        # Equal distribution for all properties
+        num_properties = len(properties)
         
         for prop in properties:
-            # Calculate fee amount based on property entitlement
-            fee_amount = (prop.entitlement / total_entitlement) * total_amount
+            # Calculate fee amount (equal distribution)
+            fee_amount = total_amount / num_properties if num_properties > 0 else 0
             
             new_fee = Fee(
                 property_id=prop.id,

@@ -58,16 +58,11 @@
             <input type="hidden" name="property_id" id="property-id">
             
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 mb-3">
                     <label for="unit_number" class="form-label">Unit Number/Name</label>
                     <input type="text" class="form-control" id="unit_number" name="unit_number" required>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label for="entitlement" class="form-label">Entitlement Value</label>
-                    <input type="number" class="form-control" id="entitlement" name="entitlement" step="0.01" min="0.01" value="1.00" required>
-                    <div class="form-text">Share of strata fees/expenses for this unit</div>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-6 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100" id="property-submit-btn">
                         <i class="fas fa-plus me-2"></i>Add Property
                     </button>
@@ -105,7 +100,6 @@
                     <tr>
                         <th>Unit</th>
                         <th>Description</th>
-                        <th>Entitlement</th>
                         <th>Balance</th>
                         <th>Actions</th>
                     </tr>
