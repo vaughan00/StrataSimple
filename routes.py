@@ -307,18 +307,31 @@ def reconciliation():
                 
                 # For outgoing payments/expenses
                 if is_expense and expense_id:
+                    # Try to get expense amount from dedicated field first
+                    expense_amount_key = f'expense_amount_{transaction_id}'
+                    expense_amount_str = request.form.get(expense_amount_key)
+                    if expense_amount_str:
+                        try:
+                            actual_amount = float(expense_amount_str)
+                            print(f"Found expense amount ${actual_amount} from dedicated field")
+                        except (ValueError, TypeError):
+                            actual_amount = abs(amount)
+                    else:
+                        # Take abs of negative amount
+                        actual_amount = abs(amount)
+                    
                     # Mark the expense as paid
                     expense = Expense.query.get(expense_id)
                     if expense:
                         print(f"Found expense to mark as paid: ID={expense.id}, Name={expense.name}, Amount=${expense.amount}")
+                        print(f"Transaction amount: ${actual_amount}, Transaction ID: {transaction_id}")
                         
-                        # Mark the expense as paid and record the date
+                        # CRITICAL: Set the paid status
                         expense.paid = True
                         expense.paid_date = datetime.now()
                         expense.matched_transaction_id = transaction_id
                         
                         # Log the activity
-                        actual_amount = abs(amount) # Amount is negative, so take absolute value
                         log_activity(
                             event_type='expense_paid',
                             description=f'Expense "{expense.name}" of ${expense.amount} marked as paid through bank reconciliation (Transaction amount: ${actual_amount})',
@@ -326,15 +339,20 @@ def reconciliation():
                             related_id=expense.id
                         )
                         
-                        # Commit the transaction immediately
+                        # Commit the transaction immediately to ensure it's saved
                         db.session.commit()
                         confirmed_count += 1
+                        
+                        # Verify the expense was updated
+                        updated_expense = Expense.query.get(expense_id)
+                        print(f"VERIFICATION: Expense ID={updated_expense.id}, Paid status is now: {updated_expense.paid}")
                         
                         # For debugging
                         all_expenses = Expense.query.all()
                         print(f"After update, {len(all_expenses)} expenses in database")
                         for exp in all_expenses:
-                            print(f"  Expense ID={exp.id}, Name={exp.name}, Amount=${exp.amount}, Paid={exp.paid}")
+                            print(f"  Expense ID={exp.id}, Name={exp.name}, Amount=${exp.amount}, Paid={exp.paid}, " +
+                                  f"Paid Date={exp.paid_date}, Matched Transaction={exp.matched_transaction_id}")
                         
                         # Skip the rest of the processing for this negative transaction
                         continue
