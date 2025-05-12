@@ -109,13 +109,12 @@
                     <tr>
                         <td>{{ property.unit_number }}</td>
                         <td>{{ property.description or '' }}</td>
-                        <td>{{ property.entitlement }}</td>
                         <td class="{{ 'text-danger' if property.balance < 0 else 'text-success' }}">
                             ${{ "%.2f"|format(property.balance) }}
                         </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-primary edit-property-btn" 
-                                   onclick="editProperty('{{ property.id }}', '{{ property.unit_number }}', '{{ property.description or '' }}', '{{ property.entitlement }}')">
+                                   onclick="editProperty('{{ property.id }}', '{{ property.unit_number }}', '{{ property.description or '' }}')">
                                <i class="fas fa-edit"></i> Edit
                             </button>
                         </td>
@@ -162,13 +161,12 @@
 {% block scripts %}
 <script>
 // Global function for handling property editing
-function editProperty(id, unitNumber, description, entitlement) {
+function editProperty(id, unitNumber, description) {
     const propertyForm = document.getElementById('property-form');
     const propertyAction = document.getElementById('property-action');
     const propertyId = document.getElementById('property-id');
     const unitNumberInput = document.getElementById('unit_number');
     const descriptionInput = document.getElementById('description');
-    const entitlementInput = document.getElementById('entitlement');
     const propertyFormTitle = document.getElementById('property-form-title');
     const propertySubmitBtn = document.getElementById('property-submit-btn');
     const editControls = document.getElementById('edit-controls');
@@ -179,7 +177,6 @@ function editProperty(id, unitNumber, description, entitlement) {
     propertyId.value = id;
     unitNumberInput.value = unitNumber;
     descriptionInput.value = description;
-    entitlementInput.value = entitlement;
     
     // Update UI for edit mode
     propertyFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Property';
@@ -198,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const propertyId = document.getElementById('property-id');
     const unitNumberInput = document.getElementById('unit_number');
     const descriptionInput = document.getElementById('description');
-    const entitlementInput = document.getElementById('entitlement');
     const propertyFormTitle = document.getElementById('property-form-title');
     const propertySubmitBtn = document.getElementById('property-submit-btn');
     const editControls = document.getElementById('edit-controls');
