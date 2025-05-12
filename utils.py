@@ -61,11 +61,12 @@ def process_csv(csv_content):
     payments = []
     
     for _, row in df.iterrows():
-        # Skip rows with no amount or negative amounts (outgoing payments)
+        # Process all transaction amounts (both positive and negative)
         try:
             amount_value = row[amount_col]
             amount = float(amount_value) if not pd.isna(amount_value) else 0
-            if amount <= 0:
+            # Skip only zero amounts
+            if amount == 0:
                 continue
         except (TypeError, ValueError):
             continue
