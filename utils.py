@@ -43,13 +43,17 @@ def process_csv(csv_content):
     
     for _, row in df.iterrows():
         # Skip rows with no amount or negative amounts (outgoing payments)
-        amount = float(row[amount_col]) if pd.notnull(row[amount_col]) else 0
-        if amount <= 0:
+        try:
+            amount_value = row[amount_col]
+            amount = float(amount_value) if not pd.isna(amount_value) else 0
+            if amount <= 0:
+                continue
+        except (TypeError, ValueError):
             continue
         
         # Parse date
-        date_str = str(row[date_col])
         try:
+            date_str = str(row[date_col])
             # Try different date formats
             for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y'):
                 try:
@@ -63,8 +67,18 @@ def process_csv(csv_content):
         except Exception:
             date = datetime.now()
         
-        description = str(row[description_col]) if pd.notnull(row[description_col]) else ''
-        reference = str(row[reference_col]) if pd.notnull(row[reference_col]) else ''
+        # Get description and reference values safely
+        try:
+            description_value = row[description_col]
+            description = str(description_value) if not pd.isna(description_value) else ''
+        except Exception:
+            description = ''
+            
+        try:
+            reference_value = row[reference_col]
+            reference = str(reference_value) if not pd.isna(reference_value) else ''
+        except Exception:
+            reference = ''
         
         # Create a unique transaction ID based on date, amount, and description/reference
         # This helps with duplicate detection
@@ -144,27 +158,48 @@ def suggest_property_matches(payments):
                 match_confidence = 90  # High confidence for unit pattern match
                 break
                 
-            # Try number matching after the word "unit" for cases like "unit 101" when unit_number="1"
+            # Enhanced unit number detection for various formats including "unit 101" 
             unit_num_match = re.search(r'\bunit\s*[\s:]?\s*(\d+)\b', text_to_search, re.IGNORECASE)
             if unit_num_match:
                 extracted_unit_number = unit_num_match.group(1)
+                
+                # Direct match with this property's unit number
                 if extracted_unit_number == unit_number:
                     matched_property = prop
                     match_confidence = 90  # High confidence for unit number match
                     break
-                # Special case for handling unit numbers like "101" when property might be "1", "2", "3", etc.
-                # This prioritizes exact matches for unit numbers in the database
-                if len(properties) < 10:  # Only for small number of properties to avoid false matches
-                    for other_prop in properties:
-                        if other_prop.unit_number == extracted_unit_number:
-                            # We found exact match with another property, so don't match this one
-                            break
-                    else:  # This else belongs to the for loop (Python special syntax)
-                        # No exact match found, so allow partial match if unit number is in the extracted unit number
-                        if unit_number in extracted_unit_number:
-                            matched_property = prop
-                            match_confidence = 60  # Medium confidence for partial unit number match
-                            break
+                    
+                # Check if this extracted unit exists in our database
+                exact_match_exists = False
+                exact_match_prop = None
+                for check_prop in properties:
+                    if check_prop.unit_number == extracted_unit_number:
+                        exact_match_exists = True
+                        exact_match_prop = check_prop
+                        break
+                        
+                # If we found an exact match with another property, suggest that property
+                if exact_match_exists and exact_match_prop:
+                    # If we're already processing that property, let it match when we get to it
+                    if exact_match_prop.id == prop.id:
+                        matched_property = prop
+                        match_confidence = 95  # Very high confidence
+                        break
+                
+                # If no exact match in database and we allow partial matching
+                elif not exact_match_exists and len(properties) < 10:  # Only for small number of properties
+                    # Check for substring match (e.g., unit_number "1" in "101")
+                    if unit_number in extracted_unit_number:
+                        matched_property = prop
+                        match_confidence = 60  # Medium confidence for partial match
+                        break
+                    
+                    # For payments without specific unit number matches, assign to first property
+                    # This helps with transactions like "unit 102" when we only have units 1-4
+                    if prop == properties[0]:  # Only for the first property in the list
+                        matched_property = prop
+                        match_confidence = 50  # Low confidence
+                        # Don't break, a better match might exist
                 
             # Simple numeric match for short descriptions
             if unit_number.isdigit() and unit_number in text_to_search and len(text_to_search) < 10:
@@ -181,12 +216,9 @@ def suggest_property_matches(payments):
                     matched_property = prop
                     match_confidence = 70  # Medium confidence for owner name match
                     break
-                    
-            # Check for "strata fee" as a generic match for any property
-            if "strata fee" in text_to_search or "fee" in text_to_search:
-                matched_property = prop
-                match_confidence = 50  # Lower confidence for generic fee mention
-                # Don't break, keep looking for better matches
+            
+        # No automatic matching for generic "strata fee" mentions
+        # We'll handle these in the UI by letting the user select the right property
         
         # Add property suggestion to payment
         if matched_property:
