@@ -85,13 +85,16 @@
                     <tr>
                         <th>Unit</th>
                         <th>Owner</th>
-                        <th>Balance</th>
-                        <th>Unpaid Fees</th>
-                        <th>Total Payments</th>
+                        <th>Fees Due</th>
+                        <th>Paid To Date</th>
+                        <th>Outstanding</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for property in properties %}
+                    {% set total_fees = property.fees|sum(attribute='amount') %}
+                    {% set total_payments = property.payments|sum(attribute='amount') %}
+                    {% set outstanding = total_fees - total_payments %}
                     <tr>
                         <td>{{ property.unit_number }}</td>
                         <td>
@@ -102,14 +105,14 @@
                                 <span class="text-warning">No owner assigned</span>
                             {% endif %}
                         </td>
-                        <td class="{{ 'text-danger' if property.balance < 0 else 'text-success' }}">
-                            ${{ "%.2f"|format(property.balance) }}
-                        </td>
-                        <td class="{{ 'text-danger' if property.fees|selectattr('paid', 'equalto', false)|list|length > 0 else '' }}">
-                            ${{ "%.2f"|format(property.fees|selectattr('paid', 'equalto', false)|sum(attribute='amount')) }}
-                        </td>
+                        <td>${{ "%.2f"|format(total_fees) }}</td>
+                        <td>${{ "%.2f"|format(total_payments) }}</td>
                         <td>
-                            ${{ "%.2f"|format(property.payments|sum(attribute='amount')) }}
+                            {% if outstanding <= 0 %}
+                                <span class="text-success">${{ "%.2f"|format(outstanding|abs) }} ✅</span>
+                            {% else %}
+                                <span class="text-danger">${{ "%.2f"|format(outstanding) }} 🔴</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -124,26 +127,28 @@
     <!-- Recent Payments -->
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Payments</h5>
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Recent Payments</h5>
             </div>
             <div class="card-body">
                 {% if recent_payments %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover table-striped table-dark">
                         <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>Property</th>
                                 <th>Amount</th>
+                                <th>Reference</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for payment in recent_payments %}
                             <tr>
                                 <td>{{ payment.date.strftime('%d %b %Y') }}</td>
-                                <td>Unit {{ payment.property.unit_number }}</td>
+                                <td>{{ payment.property.unit_number }}</td>
                                 <td class="text-success">${{ "%.2f"|format(payment.amount) }}</td>
+                                <td class="text-muted">{{ payment.reference if payment.reference else "-" }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -159,32 +164,44 @@
     <!-- Recent Fees -->
     <div class="col-md-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Fees</h5>
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Recent Fees</h5>
             </div>
             <div class="card-body">
                 {% if recent_fees %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover table-striped table-dark">
                         <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>Property</th>
                                 <th>Amount</th>
+                                <th>Remaining</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for fee in recent_fees %}
+                            {% set fee_payments = fee.payments|sum(attribute='amount') if fee.payments else 0 %}
+                            {% set remaining = fee.amount - fee_payments %}
                             <tr>
                                 <td>{{ fee.date.strftime('%d %b %Y') }}</td>
-                                <td>Unit {{ fee.property.unit_number }}</td>
+                                <td>{{ fee.property.unit_number }}</td>
                                 <td>${{ "%.2f"|format(fee.amount) }}</td>
                                 <td>
-                                    {% if fee.paid %}
-                                    <span class="badge bg-success">Paid</span>
+                                    {% if remaining > 0 %}
+                                    <span class="text-danger">${{ "%.2f"|format(remaining) }}</span>
                                     {% else %}
-                                    <span class="badge bg-warning">Pending</span>
+                                    <span class="text-success">$0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if fee.paid %}
+                                    <span class="badge bg-success">Paid ✅</span>
+                                    {% elif fee_payments > 0 %}
+                                    <span class="badge bg-warning text-dark">Partial 🟠</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Unpaid 🔴</span>
                                     {% endif %}
                                 </td>
                             </tr>

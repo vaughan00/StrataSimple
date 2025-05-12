@@ -45,10 +45,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(fee => {
                     const row = document.createElement('tr');
                     
+                    // Calculate the payment status and amount
+                    const payments = fee.payments || [];
+                    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+                    const remaining = fee.amount - totalPaid;
+                    const paymentStatus = fee.paid ? 'paid' : (totalPaid > 0 ? 'partial' : 'unpaid');
+                    
                     // Create status badge
-                    const statusBadge = fee.paid ? 
-                        '<span class="badge bg-success">Paid</span>' : 
-                        '<span class="badge bg-warning">Pending</span>';
+                    let statusBadge;
+                    if (paymentStatus === 'paid') {
+                        statusBadge = '<span class="badge bg-success">Paid ✅</span>';
+                    } else if (paymentStatus === 'partial') {
+                        statusBadge = '<span class="badge bg-warning text-dark">Partial 🟠</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-danger">Unpaid 🔴</span>';
+                    }
                     
                     // Create action button
                     const actionButton = !fee.paid ? 
@@ -61,6 +72,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>${fee.unit_number}</td>
                         <td>${fee.owner_name || 'Unknown'}</td>
                         <td>$${fee.amount.toFixed(2)}</td>
+                        <td>${remaining > 0 ? 
+                            `<span class="text-danger">$${remaining.toFixed(2)}</span>` : 
+                            `<span class="text-success">$0.00</span>`}
+                        </td>
                         <td>${statusBadge}</td>
                         <td>${actionButton}</td>
                     `;
