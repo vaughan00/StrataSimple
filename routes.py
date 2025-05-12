@@ -199,8 +199,12 @@ def fees():
         period_name = request.form.get('period_name')
         start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
         end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
-        total_amount = float(request.form.get('total_amount'))
+        fee_per_unit = float(request.form.get('fee_per_unit'))
         description = request.form.get('description')
+        
+        # Calculate total amount based on fee per unit
+        num_properties = len(properties)
+        total_amount = fee_per_unit * num_properties
         
         new_period = BillingPeriod(
             name=period_name,
@@ -212,13 +216,10 @@ def fees():
         db.session.add(new_period)
         db.session.commit()
         
-        # Calculate and create fees for all properties
-        # Equal distribution for all properties
-        num_properties = len(properties)
-        
+        # Create fees for all properties
         for prop in properties:
-            # Calculate fee amount (equal distribution)
-            fee_amount = total_amount / num_properties if num_properties > 0 else 0
+            # Use fee per unit directly
+            fee_amount = fee_per_unit
             
             new_fee = Fee(
                 property_id=prop.id,

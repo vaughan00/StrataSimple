@@ -25,10 +25,10 @@
                     <input type="text" class="form-control" id="period_name" name="period_name" required placeholder="e.g., Q1 2023 or July 2023">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="total_amount" class="form-label">Total Amount</label>
+                    <label for="fee_per_unit" class="form-label">Fee Per Unit</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input type="number" class="form-control" id="total_amount" name="total_amount" step="0.01" min="0" required placeholder="Total fees to be divided among properties">
+                        <input type="number" class="form-control" id="fee_per_unit" name="fee_per_unit" step="0.01" min="0" required placeholder="Amount to charge each property">
                     </div>
                 </div>
             </div>
@@ -48,7 +48,7 @@
             </div>
             
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i> Fees will be automatically calculated for each property based on their entitlement percentage.
+                <i class="fas fa-info-circle me-2"></i> The fee per unit will be charged to each property equally.
             </div>
             
             <button type="submit" class="btn btn-primary">
@@ -124,31 +124,30 @@
     </div>
 </div>
 
-<!-- Fee Distribution Card -->
+<!-- Properties Overview Card -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0">Property Entitlements</h5>
+        <h5 class="mb-0">Properties Overview</h5>
     </div>
     <div class="card-body">
-        <p class="mb-3">These entitlements are used to calculate how fees are distributed among properties.</p>
+        <p class="mb-3">All properties are charged equally with this fee system.</p>
         <div class="table-responsive">
             <table class="table table-dark table-striped table-hover">
                 <thead>
                     <tr>
                         <th>Unit</th>
                         <th>Owner</th>
-                        <th>Entitlement</th>
-                        <th>Percentage</th>
+                        <th>Current Balance</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% set total_entitlement = properties|sum(attribute='entitlement') %}
                     {% for property in properties %}
                     <tr>
                         <td>{{ property.unit_number }}</td>
                         <td>{{ property.owner_name }}</td>
-                        <td>{{ property.entitlement }}</td>
-                        <td>{{ "%.2f"|format((property.entitlement / total_entitlement) * 100) }}%</td>
+                        <td class="{{ 'text-danger' if property.balance < 0 else 'text-success' }}">
+                            ${{ "%.2f"|format(property.balance) }}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
