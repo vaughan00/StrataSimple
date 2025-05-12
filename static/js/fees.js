@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.length === 0) {
                     const emptyRow = document.createElement('tr');
                     emptyRow.innerHTML = `
-                        <td colspan="5" class="text-center">
+                        <td colspan="6" class="text-center">
                             <div class="alert alert-info">No fees found for this period.</div>
                         </td>
                     `;
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error(`Error fetching fees for period ${periodId}:`, error);
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center">
+                        <td colspan="6" class="text-center">
                             <div class="alert alert-danger">Error loading fees.</div>
                         </td>
                     </tr>
@@ -117,11 +117,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Update the row cells for status and action
-                const statusCell = row.cells[3];
-                const actionCell = row.cells[4];
+                // Update the row cells for remaining amount, status and action
+                const remainingCell = row.cells[3];
+                const statusCell = row.cells[4];
+                const actionCell = row.cells[5];
                 
-                statusCell.innerHTML = '<span class="badge bg-success">Paid</span>';
+                remainingCell.innerHTML = '<span class="text-success">$0.00</span>';
+                statusCell.innerHTML = '<span class="badge bg-success">Paid ✅</span>';
                 actionCell.innerHTML = ''; // Remove the mark paid button
                 
                 // Show success message

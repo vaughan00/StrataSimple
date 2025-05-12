@@ -92,6 +92,7 @@
                                             <th>Unit</th>
                                             <th>Owner</th>
                                             <th>Amount</th>
+                                            <th>Remaining</th>
                                             <th>Status</th>
                                             <th>Actions</th>
                                         </tr>
@@ -126,8 +127,8 @@
 
 <!-- Properties Overview Card -->
 <div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">Properties Overview</h5>
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-building me-2"></i>Properties Overview</h5>
     </div>
     <div class="card-body">
         <p class="mb-3">All properties are charged equally with this fee system.</p>
@@ -137,16 +138,27 @@
                     <tr>
                         <th>Unit</th>
                         <th>Owner</th>
-                        <th>Current Balance</th>
+                        <th>Fees Due</th>
+                        <th>Paid To Date</th>
+                        <th>Outstanding</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for property in properties %}
+                    {% set total_fees = property.fees|sum(attribute='amount') %}
+                    {% set total_payments = property.payments|sum(attribute='amount') %}
+                    {% set outstanding = total_fees - total_payments %}
                     <tr>
                         <td>{{ property.unit_number }}</td>
                         <td>{% if property.get_owner() %}{{ property.get_owner().name }}{% else %}<span class="text-warning">No owner assigned</span>{% endif %}</td>
-                        <td class="{{ 'text-danger' if property.balance < 0 else 'text-success' }}">
-                            ${{ "%.2f"|format(property.balance) }}
+                        <td>${{ "%.2f"|format(total_fees) }}</td>
+                        <td>${{ "%.2f"|format(total_payments) }}</td>
+                        <td>
+                            {% if outstanding <= 0 %}
+                                <span class="text-success">${{ "%.2f"|format(outstanding|abs) }} ✅</span>
+                            {% else %}
+                                <span class="text-danger">${{ "%.2f"|format(outstanding) }} 🔴</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
