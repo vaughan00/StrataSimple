@@ -287,18 +287,16 @@ def setup():
             # Add a new property
             unit_number = request.form.get('unit_number')
             description = request.form.get('description')
-            entitlement = float(request.form.get('entitlement') or 1.0)
             
             # Check if property with this unit number already exists
             if Property.query.filter_by(unit_number=unit_number).first():
                 flash(f'Property with unit number {unit_number} already exists', 'danger')
                 return redirect(url_for('setup'))
             
-            # Create new property
+            # Create new property (entitlement fixed at 1.0)
             new_property = Property(
                 unit_number=unit_number,
-                description=description,
-                entitlement=entitlement
+                description=description
             )
             db.session.add(new_property)
             db.session.commit()
@@ -313,7 +311,7 @@ def setup():
             
             property.unit_number = request.form.get('unit_number')
             property.description = request.form.get('description')
-            property.entitlement = float(request.form.get('entitlement') or 1.0)
+            # Entitlement fixed at 1.0
             
             db.session.commit()
             
@@ -358,8 +356,8 @@ def setup():
                     continue
                 
                 new_property = Property(
-                    unit_number=unit_number,
-                    entitlement=1.0
+                    unit_number=unit_number
+                    # entitlement defaults to 1.0
                 )
                 db.session.add(new_property)
             

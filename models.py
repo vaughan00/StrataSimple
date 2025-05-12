@@ -35,7 +35,7 @@ class Property(db.Model):
     unit_number = db.Column(db.String(10), nullable=False)
     description = db.Column(db.String(200))
     balance = db.Column(db.Float, default=0.0)
-    entitlement = db.Column(db.Float, default=1.0)  # Share of strata fees (e.g., based on unit size)
+    entitlement = db.Column(db.Float, default=1.0)  # All properties now have fixed entitlement of 1.0
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship with payments
