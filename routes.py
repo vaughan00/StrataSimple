@@ -199,9 +199,12 @@ def reconciliation():
                     continue
                 
                 # Get form data
-                property_id = property_ids[i] if property_ids[i] else None
-                fee_id = fee_ids[i] if fee_ids[i] and fee_ids[i] != "null" else None
+                property_id = property_ids[i] if i < len(property_ids) and property_ids[i] else None
+                fee_id = fee_ids[i] if i < len(fee_ids) and fee_ids[i] and fee_ids[i] != "null" else None
                 expense_id = expense_ids[i] if i < len(expense_ids) and expense_ids[i] and expense_ids[i] != "null" else None
+                
+                # Debug info
+                print(f"Transaction {i}: Property ID={property_id}, Fee ID={fee_id}, Expense ID={expense_id}")
                 
                 # Check if this is a negative transaction (expense)
                 amount = float(request.form.getlist('amount')[i])

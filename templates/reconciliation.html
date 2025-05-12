@@ -117,8 +117,6 @@
                     <tbody>
                         {% for payment in transactions %}
                         {% set is_expense = payment.amount < 0 %}
-                <!-- Debug info to verify transaction data -->
-                <small class="text-muted">Type: {% if is_expense %}Expense{% else %}Payment{% endif %}, Amount: {{ payment.amount }}</small>
                         <tr data-duplicate="{{ payment.is_duplicate|lower }}" 
                             data-suggested="{{ (payment.suggested_property is not none or payment.suggested_expense is not none)|lower }}"
                             data-expense="{{ is_expense|lower }}" 
@@ -133,7 +131,13 @@
                             <td>{{ payment.date.strftime('%d %b %Y') }}</td>
                             <td class="{% if is_expense %}text-danger{% else %}text-success{% endif %}">
                                 ${{ "%.2f"|format(payment.amount|abs) }}
-                                {% if is_expense %}<i class="fas fa-arrow-alt-circle-down text-danger ms-1"></i>{% else %}<i class="fas fa-arrow-alt-circle-up text-success ms-1"></i>{% endif %}
+                                {% if is_expense %}
+                                    <i class="fas fa-arrow-alt-circle-down text-danger ms-1"></i>
+                                    <small class="d-block text-muted">Expense Record</small>
+                                {% else %}
+                                    <i class="fas fa-arrow-alt-circle-up text-success ms-1"></i>
+                                    <small class="d-block text-muted">Income Payment</small>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if payment.is_duplicate %}
