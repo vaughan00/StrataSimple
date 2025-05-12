@@ -103,11 +103,13 @@ class Fee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
+    date = db.Column(db.DateTime, nullable=False)  # Issue date
+    due_date = db.Column(db.DateTime, nullable=False)  # Date when fee must be paid by
     description = db.Column(db.String(200))
     period = db.Column(db.String(50))  # e.g., "Q1 2023", "July 2023"
     paid = db.Column(db.Boolean, default=False)
     fee_type = db.Column(db.String(50), default="billing_period")  # Options: billing_period, opening_balance, ad_hoc
+    paid_amount = db.Column(db.Float, default=0.0)  # Track partial payments
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):

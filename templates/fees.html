@@ -29,7 +29,7 @@
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="fee_per_unit" class="form-label">Fee Per Unit</label>
+                    <label for="fee_per_unit" class="form-label">Fee Amount</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
                         <input type="number" class="form-control" id="fee_per_unit" name="fee_per_unit" step="0.01" min="0" required placeholder="Amount to charge each property">
@@ -40,19 +40,31 @@
             <!-- Billing Period specific fields (shown/hidden based on fee type) -->
             <div id="billing_period_fields">
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="period_name" class="form-label">Billing Period Name</label>
                         <input type="text" class="form-control" id="period_name" name="period_name" placeholder="e.g., Q1 2023 or July 2023">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="start_date" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="start_date" name="start_date">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="end_date" class="form-label">End Date</label>
                         <input type="date" class="form-control" id="end_date" name="end_date">
                     </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="billing_due_date" class="form-label">Due Date</label>
+                        <input type="date" class="form-control" id="billing_due_date" name="billing_due_date" readonly>
+                        <small class="text-muted">Auto-calculated from start date</small>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- Due Date field for non-billing period fees -->
+            <div id="manual_due_date_field" class="mb-3" style="display: none;">
+                <label for="due_date" class="form-label">Due Date</label>
+                <input type="date" class="form-control" id="due_date" name="due_date">
+                <small class="text-muted">Date when this fee must be paid by</small>
             </div>
 
             <!-- Property selection (shown/hidden based on fee type) -->
