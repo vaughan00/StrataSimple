@@ -68,9 +68,24 @@ def reconciliation():
                 return redirect(request.url)
             
             # Check file type
-            if file and file.filename.endswith('.csv'):
-                # Read CSV content
-                content = file.read().decode('utf-8')
+            if file and (file.filename.endswith('.csv') or file.filename.lower().endswith('.csv')):
+                # Read CSV content with error handling for different encodings
+                file_content = file.read()
+                
+                # Try different encodings
+                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'windows-1252']
+                content = None
+                
+                for encoding in encodings:
+                    try:
+                        content = file_content.decode(encoding)
+                        break  # Successfully decoded
+                    except UnicodeDecodeError:
+                        continue  # Try next encoding
+                
+                if content is None:
+                    flash('Could not decode CSV file. Please ensure it uses a standard encoding.', 'danger')
+                    return redirect(request.url)
                 
                 try:
                     # Process CSV data and analyze payments

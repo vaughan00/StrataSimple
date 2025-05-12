@@ -144,6 +144,28 @@ def suggest_property_matches(payments):
                 match_confidence = 90  # High confidence for unit pattern match
                 break
                 
+            # Try number matching after the word "unit" for cases like "unit 101" when unit_number="1"
+            unit_num_match = re.search(r'\bunit\s*[\s:]?\s*(\d+)\b', text_to_search, re.IGNORECASE)
+            if unit_num_match:
+                extracted_unit_number = unit_num_match.group(1)
+                if extracted_unit_number == unit_number:
+                    matched_property = prop
+                    match_confidence = 90  # High confidence for unit number match
+                    break
+                # Special case for handling unit numbers like "101" when property might be "1", "2", "3", etc.
+                # This prioritizes exact matches for unit numbers in the database
+                if len(properties) < 10:  # Only for small number of properties to avoid false matches
+                    for other_prop in properties:
+                        if other_prop.unit_number == extracted_unit_number:
+                            # We found exact match with another property, so don't match this one
+                            break
+                    else:  # This else belongs to the for loop (Python special syntax)
+                        # No exact match found, so allow partial match if unit number is in the extracted unit number
+                        if unit_number in extracted_unit_number:
+                            matched_property = prop
+                            match_confidence = 60  # Medium confidence for partial unit number match
+                            break
+                
             # Simple numeric match for short descriptions
             if unit_number.isdigit() and unit_number in text_to_search and len(text_to_search) < 10:
                 matched_property = prop
