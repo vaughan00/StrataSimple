@@ -141,7 +141,11 @@
                                 </select>
                                 {% if payment.suggested_property %}
                                 <small class="d-block mt-1 suggested-match">
-                                    <i class="fas fa-check-circle me-1"></i>Suggested match: {{ payment.suggested_property.unit_number }}
+                                    <i class="fas fa-check-circle me-1"></i>Suggested match: 
+                                    <a href="{{ url_for('property_detail', property_id=payment.suggested_property.id) }}" class="text-info" target="_blank">
+                                        {{ payment.suggested_property.unit_number }}
+                                        <i class="fas fa-external-link-alt ms-1 small"></i>
+                                    </a>
                                 </small>
                                 {% endif %}
                             </td>
@@ -215,7 +219,10 @@
                         <td>{{ payment.date.strftime('%d %b %Y') }}</td>
                         <td>
                             {% if payment.property %}
-                            {{ payment.property.unit_number }}
+                            <a href="{{ url_for('property_detail', property_id=payment.property.id) }}" class="text-info">
+                                {{ payment.property.unit_number }}
+                                <i class="fas fa-external-link-alt ms-1 small"></i>
+                            </a>
                             {% else %}
                             <em>Unknown</em>
                             {% endif %}
