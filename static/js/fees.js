@@ -19,10 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const feeInfoAlert = document.getElementById('fee_info');
     const periodNameInput = document.getElementById('period_name');
     
-    feeTypeSelect.addEventListener('change', function() {
-        const selectedType = this.value;
-        
-        // Show/hide relevant sections based on fee type
+    // Function to toggle UI based on fee type
+    function toggleFeeTypeFields(selectedType) {
         if (selectedType === 'billing_period') {
             billingPeriodFields.style.display = 'block';
             propertySelectionDiv.style.display = 'none';
@@ -44,6 +42,14 @@ document.addEventListener('DOMContentLoaded', function() {
             startDateInput.required = false;
             endDateInput.required = false;
         }
+    }
+    
+    // Initialize UI based on default fee type
+    toggleFeeTypeFields(feeTypeSelect.value);
+    
+    // Set up change event listener
+    feeTypeSelect.addEventListener('change', function() {
+        toggleFeeTypeFields(this.value);
     });
     
     // Initialize fee tables for each billing period
