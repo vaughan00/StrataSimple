@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: unitNumbers,
                 datasets: [{
-                    label: 'Current Balance',
+                    label: 'Financial Position',
                     data: balances,
                     backgroundColor: backgroundColors,
                     borderColor: backgroundColors.map(color => color.replace('0.7', '1')),
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Total Paid', 'Outstanding Fees'],
+                labels: ['Paid To Date', 'Fees Due'],
                 datasets: [{
                     data: [totalPayments, totalFees],
                     backgroundColor: ['rgba(40, 167, 69, 0.7)', 'rgba(220, 53, 69, 0.7)'],
