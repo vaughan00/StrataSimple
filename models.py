@@ -61,6 +61,24 @@ class Property(db.Model):
             if contact_assoc.relationship_type == 'manager':
                 return contact_assoc.contact
         return None
+        
+    def get_due_now_amount(self, reference_date=None):
+        """
+        Calculate the total amount due now (overdue fees).
+        Args:
+            reference_date: Date to compare against (defaults to current date)
+        Returns:
+            float: Total amount of overdue fees
+        """
+        if reference_date is None:
+            reference_date = datetime.now()
+            
+        due_now = 0.0
+        for fee in self.fees:
+            if not fee.paid and fee.is_overdue(reference_date):
+                due_now += fee.remaining_amount
+                
+        return due_now
 
 # Association model for relationship between Contact and Property
 class ContactProperty(db.Model):
@@ -111,6 +129,31 @@ class Fee(db.Model):
     fee_type = db.Column(db.String(50), default="billing_period")  # Options: billing_period, opening_balance, ad_hoc
     paid_amount = db.Column(db.Float, default=0.0)  # Track partial payments
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def is_overdue(self, reference_date=None):
+        """
+        Check if the fee is overdue based on the due_date.
+        Args:
+            reference_date: Date to compare against (defaults to current date)
+        Returns:
+            bool: True if fee is overdue and not fully paid
+        """
+        if self.paid:
+            return False
+            
+        if reference_date is None:
+            reference_date = datetime.now()
+            
+        # Normalize dates for comparison (remove time component)
+        ref_date = reference_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        due_date = self.due_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        return due_date <= ref_date
+    
+    @property
+    def remaining_amount(self):
+        """Calculate the remaining amount to be paid."""
+        return self.amount - self.paid_amount
     
     def __repr__(self):
         return f"<Fee {self.amount} for Property {self.property_id}>"

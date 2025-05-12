@@ -47,6 +47,17 @@ def index():
         payment_total = sum(payment.amount for payment in fee.payments) if hasattr(fee, 'payments') and fee.payments else 0
         print(f"  Fee ID: {fee.id}, Amount: {fee.amount}, Paid status: {fee.paid}, Payments: {payment_total}")
     
+    # Debug each property's due now amount
+    print("\nPROPERTY DUE NOW AMOUNTS:")
+    for prop in properties:
+        due_now = prop.get_due_now_amount(today)
+        if due_now > 0:
+            print(f"  Property {prop.id} (Unit {prop.unit_number}): Due Now = ${due_now:.2f}")
+            # List overdue fees
+            for fee in prop.fees:
+                if not fee.paid and fee.is_overdue(today):
+                    print(f"    Fee ID: {fee.id}, Amount: ${fee.amount:.2f}, Paid Amount: ${fee.paid_amount:.2f}, Remaining: ${fee.remaining_amount:.2f}, Due Date: {fee.due_date.strftime('%Y-%m-%d')}")
+    
     return render_template('dashboard.html', 
                            properties=properties, 
                            total_balance=total_balance,

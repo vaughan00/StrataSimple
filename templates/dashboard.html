@@ -112,20 +112,8 @@
                     {% set overdue_amount = 0 %}
                     {% set due_now_amount = 0 %}
                     
-                    {% for fee in property.fees %}
-                        {% if not fee.paid %}
-                            {% if fee.due_date %}
-                                {# Debugged date comparison using string formatting #}
-                                {% set fee_due_date_str = fee.due_date.strftime('%Y-%m-%d') %}
-                                {% set today_str = today.strftime('%Y-%m-%d') %}
-                                {% if fee_due_date_str <= today_str %}
-                                    {% set overdue_amount = overdue_amount + (fee.amount - (fee.paid_amount or 0)) %}
-                                {% endif %}
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-                    
-                    {% set due_now = overdue_amount %}
+                    {# Use the new model method to calculate due now amount #}
+                    {% set due_now = property.get_due_now_amount(today) %}
                     
                     <tr>
                         <td>{{ property.unit_number }}</td>
