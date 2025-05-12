@@ -219,12 +219,22 @@ def reconciliation():
                 property = Property.query.get(property_id)
                 if property:
                     property.balance += amount
-                
-                # Mark fee as paid if assigned
-                if fee_id:
-                    fee = Fee.query.get(fee_id)
-                    if fee:
-                        fee.paid = True
+                    
+                    # Log the payment activity
+                    fee_info = ""
+                    if fee_id:
+                        fee = Fee.query.get(fee_id)
+                        if fee:
+                            fee.paid = True
+                            fee_info = f" for {fee.description}"
+                    
+                    # Log the activity
+                    log_activity(
+                        event_type='payment_reconciled',
+                        description=f'Payment of ${amount} reconciled to property {property.unit_number}{fee_info}',
+                        related_type='Payment',
+                        related_id=new_payment.id
+                    )
                 
                 confirmed_count += 1
             
@@ -338,6 +348,14 @@ def fees():
             
             # Update property balance
             prop.balance -= fee_per_unit
+            
+            # Log the activity
+            log_activity(
+                event_type=f'fee_{fee_type}_created',
+                description=f'{fee_description} for ${fee_per_unit} added to property {prop.unit_number}',
+                related_type='Fee',
+                related_id=new_fee.id
+            )
         
         db.session.commit()
         
@@ -405,6 +423,18 @@ def mark_fee_paid(fee_id):
         fee.paid = False
     
     db.session.commit()
+    
+    # Get property information for the log
+    property = Property.query.get(fee.property_id)
+    status = "fully paid" if fee.paid else "partially paid"
+    
+    # Log the activity
+    log_activity(
+        event_type='fee_payment_updated',
+        description=f'Fee for property {property.unit_number} marked as {status} (${fee.paid_amount}/{fee.amount})',
+        related_type='Fee',
+        related_id=fee.id
+    )
     
     return jsonify({
         'success': True, 
@@ -673,6 +703,14 @@ def contacts():
             
             contact = Contact.query.get(contact_id)
             property = Property.query.get(property_id)
+            
+            # Log the activity
+            log_activity(
+                event_type='property_contact_assigned',
+                description=f'{contact.name} was assigned as {relationship_type} of property {property.unit_number}',
+                related_type='Property',
+                related_id=property.id
+            )
             
             flash(f'Successfully assigned {contact.name} as {relationship_type} of {property.unit_number}', 'success')
             return redirect(url_for('contacts'))
