@@ -195,6 +195,16 @@ def fees():
     periods = BillingPeriod.query.order_by(BillingPeriod.start_date.desc()).all()
     
     if request.method == 'POST':
+        # Check if all properties have owners first
+        properties_without_owners = []
+        for prop in properties:
+            if not prop.get_owner():
+                properties_without_owners.append(prop.unit_number)
+                
+        if properties_without_owners:
+            flash(f'Cannot raise fees: The following properties have no assigned owners: {", ".join(properties_without_owners)}', 'danger')
+            return redirect(url_for('fees'))
+        
         # Create new billing period
         period_name = request.form.get('period_name')
         start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
@@ -450,6 +460,14 @@ def contacts():
             contact_id = request.form.get('contact_id')
             property_id = request.form.get('property_id')
             relationship_type = request.form.get('relationship_type')
+            
+            # Get the property
+            property = Property.query.get(property_id)
+            
+            # If adding a non-owner contact, check if property already has an owner
+            if relationship_type != 'owner' and not property.get_owner():
+                flash(f'Property {property.unit_number} must have an owner assigned before adding other contacts', 'danger')
+                return redirect(url_for('contacts'))
             
             # Check if this relationship already exists
             existing = ContactProperty.query.filter_by(
