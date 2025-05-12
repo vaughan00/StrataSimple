@@ -335,6 +335,7 @@ def get_period_fees(period_id):
             'owner_name': owner_name,
             'amount': fee.amount,
             'paid': fee.paid,
+            'fee_type': fee.fee_type if hasattr(fee, 'fee_type') else 'billing_period',  # Default to billing_period for existing fees
             'payments': [{'amount': payment.amount, 'date': payment.date.strftime('%Y-%m-%d')} for payment in payments]
         })
     

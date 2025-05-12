@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.length === 0) {
                     const emptyRow = document.createElement('tr');
                     emptyRow.innerHTML = `
-                        <td colspan="6" class="text-center">
+                        <td colspan="7" class="text-center">
                             <div class="alert alert-info">No fees found for this period.</div>
                         </td>
                     `;
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error(`Error fetching fees for period ${periodId}:`, error);
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center">
+                        <td colspan="7" class="text-center">
                             <div class="alert alert-danger">Error loading fees.</div>
                         </td>
                     </tr>
