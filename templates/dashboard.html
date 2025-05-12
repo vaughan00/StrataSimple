@@ -177,6 +177,7 @@
                                 <th>Property</th>
                                 <th>Amount</th>
                                 <th>Remaining</th>
+                                <th>Type</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -193,6 +194,17 @@
                                     <span class="text-danger">${{ "%.2f"|format(remaining) }}</span>
                                     {% else %}
                                     <span class="text-success">$0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if fee.fee_type == 'billing_period' %}
+                                    <span class="badge bg-primary">Billing Period</span>
+                                    {% elif fee.fee_type == 'opening_balance' %}
+                                    <span class="badge bg-secondary">Opening Balance</span>
+                                    {% elif fee.fee_type == 'ad_hoc' %}
+                                    <span class="badge bg-info">Ad Hoc</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">Billing Period</span>
                                     {% endif %}
                                 </td>
                                 <td>
