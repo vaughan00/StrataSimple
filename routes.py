@@ -1,13 +1,13 @@
 import os
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import render_template, redirect, url_for, request, flash, jsonify, session, abort
 from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
-from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty
-from utils import process_csv, analyze_payments
+from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog
+from utils import process_csv, analyze_payments, log_activity
 
 @app.route('/')
 def index():

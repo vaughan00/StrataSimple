@@ -170,3 +170,32 @@ class BillingPeriod(db.Model):
     
     def __repr__(self):
         return f"<BillingPeriod {self.name}>"
+        
+class ActivityLog(db.Model):
+    """Model for tracking system activities and events."""
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    event_type = db.Column(db.String(50), nullable=False)  # e.g., 'property_added', 'payment_reconciled'
+    description = db.Column(db.String(250), nullable=False)  # Human-readable description
+    related_object_type = db.Column(db.String(50), nullable=True)  # e.g., 'Property', 'Fee', 'Payment'
+    related_object_id = db.Column(db.Integer, nullable=True)
+    
+    def __repr__(self):
+        return f"<ActivityLog {self.event_type}: {self.description[:30]}...>"
+        
+    @property
+    def related_object(self):
+        """Get the related object based on type and ID."""
+        if not self.related_object_type or not self.related_object_id:
+            return None
+            
+        if self.related_object_type == 'Property':
+            return Property.query.get(self.related_object_id)
+        elif self.related_object_type == 'Contact':
+            return Contact.query.get(self.related_object_id)
+        elif self.related_object_type == 'Fee':
+            return Fee.query.get(self.related_object_id)
+        elif self.related_object_type == 'Payment':
+            return Payment.query.get(self.related_object_id)
+        
+        return None

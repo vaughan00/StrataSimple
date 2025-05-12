@@ -5,7 +5,26 @@ from datetime import datetime
 from io import StringIO
 
 from app import db
-from models import Property, Payment, Fee
+from models import Property, Payment, Fee, ActivityLog
+
+def log_activity(event_type, description, related_type=None, related_id=None):
+    """
+    Record an activity log entry.
+    
+    Args:
+        event_type (str): Type of event (e.g., 'property_added', 'payment_reconciled')
+        description (str): Human-readable description of what happened
+        related_type (str, optional): Type of related object (e.g., 'Property', 'Fee')
+        related_id (int, optional): ID of the related object
+    """
+    log_entry = ActivityLog(
+        event_type=event_type,
+        description=description,
+        related_object_type=related_type,
+        related_object_id=related_id
+    )
+    db.session.add(log_entry)
+    db.session.commit()
 
 def process_csv(csv_content):
     """
