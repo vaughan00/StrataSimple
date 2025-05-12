@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from datetime import datetime
-from flask import render_template, redirect, url_for, request, flash, jsonify, session
+from flask import render_template, redirect, url_for, request, flash, jsonify, session, abort
 from werkzeug.utils import secure_filename
 from io import StringIO
 
@@ -706,6 +706,73 @@ def get_property_contacts(property_id):
     
     return jsonify(contacts_data)
 
+# Property detail page
+@app.route('/property/<int:property_id>')
+def property_detail(property_id):
+    """Detailed view of a specific property with financial history."""
+    today = datetime.now()
+    property = Property.query.get_or_404(property_id)
+    
+    # Get financial data
+    total_fees = sum(fee.amount for fee in property.fees)
+    total_payments = sum(payment.amount for payment in property.payments)
+    outstanding = total_fees - total_payments
+    due_now = property.get_due_now_amount(today)
+    
+    # Get opening balance fee (if exists)
+    opening_balance_fee = Fee.query.filter_by(
+        property_id=property_id,
+        fee_type='opening_balance'
+    ).first()
+    
+    # Get recent fees and payments
+    recent_fees = Fee.query.filter_by(property_id=property_id).order_by(Fee.date.desc()).all()
+    recent_payments = Payment.query.filter_by(property_id=property_id).order_by(Payment.date.desc()).all()
+    
+    # Get owner and other contacts
+    owner = property.get_owner()
+    contacts = [assoc.contact for assoc in property.contact_associations]
+    
+    # Create timeline of activity
+    timeline = []
+    
+    # Add fees to timeline
+    for fee in property.fees:
+        timeline.append({
+            'date': fee.date,
+            'type': 'fee',
+            'description': f"Fee raised: {fee.description or fee.fee_type}",
+            'amount': fee.amount,
+            'item': fee
+        })
+    
+    # Add payments to timeline
+    for payment in property.payments:
+        timeline.append({
+            'date': payment.date,
+            'type': 'payment',
+            'description': f"Payment received: {payment.description or 'No description'}",
+            'amount': payment.amount,
+            'item': payment
+        })
+    
+    # Sort timeline by date (most recent first)
+    timeline.sort(key=lambda x: x['date'], reverse=True)
+    
+    return render_template('property_detail.html',
+                          property=property,
+                          total_fees=total_fees,
+                          total_payments=total_payments,
+                          outstanding=outstanding,
+                          due_now=due_now,
+                          opening_balance_fee=opening_balance_fee,
+                          recent_fees=recent_fees,
+                          recent_payments=recent_payments,
+                          owner=owner,
+                          contacts=contacts,
+                          timeline=timeline,
+                          today=today)
+                          
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):

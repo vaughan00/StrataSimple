@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>{{ property.unit_number }} Details - StrataHub</title>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-3">
+            <i class="fas fa-building me-2"></i>{{ property.unit_number }}
+        </h1>
+        <p class="text-muted">{{ property.description or "No description provided" }}</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <a href="{{ url_for('setup') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Properties
+        </a>
+    </div>
+</div>
+
+<!-- Property Info Card -->
+<div class="card mb-4 border-dark">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Property Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Financial Summary -->
+            <div class="col-md-6">
+                <h5 class="border-bottom pb-2 mb-3">Financial Summary</h5>
+                <table class="table table-hover">
+                    <tbody>
+                        <tr>
+                            <th>Total Fees Due:</th>
+                            <td class="text-end">${{ "%.2f"|format(total_fees) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Paid to Date:</th>
+                            <td class="text-end">${{ "%.2f"|format(total_payments) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Outstanding Balance:</th>
+                            <td class="text-end">
+                                {% if outstanding <= 0 %}
+                                    <span class="text-success">${{ "%.2f"|format(outstanding|abs) }}</span>
+                                {% else %}
+                                    <span class="text-danger">${{ "%.2f"|format(outstanding) }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if opening_balance_fee %}
+                        <tr>
+                            <th>Opening Balance:</th>
+                            <td class="text-end">${{ "%.2f"|format(opening_balance_fee.amount) }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Due Now:</th>
+                            <td class="text-end">
+                                {% if due_now > 0 %}
+                                    <span class="text-danger">${{ "%.2f"|format(due_now) }}</span>
+                                {% else %}
+                                    <span class="text-success">$0.00</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td class="text-end">
+                                {% if outstanding <= 0 %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif due_now > 0 %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Outstanding</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Contact Information -->
+            <div class="col-md-6">
+                <h5 class="border-bottom pb-2 mb-3">Contact Information</h5>
+                
+                <!-- Owner info -->
+                <div class="mb-4">
+                    <h6><i class="fas fa-user me-2"></i>Owner</h6>
+                    {% if owner %}
+                        <div class="card mb-2">
+                            <div class="card-body py-2">
+                                <h6 class="mb-1">{{ owner.name }}</h6>
+                                <div class="small text-muted">
+                                    {% if owner.email %}
+                                        <div><i class="fas fa-envelope me-1"></i> {{ owner.email }}</div>
+                                    {% endif %}
+                                    {% if owner.phone %}
+                                        <div><i class="fas fa-phone me-1"></i> {{ owner.phone }}</div>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ url_for('contacts') }}?contact_id={{ owner.id }}" class="small">View full details</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            No owner assigned
+                        </p>
+                        <a href="{{ url_for('contacts') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-user-plus me-1"></i> Assign Owner
+                        </a>
+                    {% endif %}
+                </div>
+                
+                <!-- Other contacts -->
+                <div>
+                    <h6><i class="fas fa-address-book me-2"></i>Other Contacts</h6>
+                    {% if contacts|length > 1 or (contacts|length == 1 and not owner) %}
+                        {% for contact in contacts %}
+                            {% if not owner or contact.id != owner.id %}
+                                <div class="card mb-2">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">{{ contact.name }}</h6>
+                                            <span class="badge bg-secondary">
+                                                {% for assoc in property.contact_associations %}
+                                                    {% if assoc.contact_id == contact.id %}
+                                                        {{ assoc.relationship_type|capitalize }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </span>
+                                        </div>
+                                        <div class="small text-muted">
+                                            {% if contact.email %}
+                                                <div><i class="fas fa-envelope me-1"></i> {{ contact.email }}</div>
+                                            {% endif %}
+                                            {% if contact.phone %}
+                                                <div><i class="fas fa-phone me-1"></i> {{ contact.phone }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <a href="{{ url_for('contacts') }}?contact_id={{ contact.id }}" class="small">View full details</a>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No additional contacts</p>
+                    {% endif %}
+                    <a href="{{ url_for('contacts') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-user-plus me-1"></i> Manage Contacts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fees and Payments -->
+<div class="row">
+    <!-- Fees -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-dark">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Fees</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_fees %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fee in recent_fees %}
+                            {% set fee_payments = fee.payments|sum(attribute='amount') if fee.payments else 0 %}
+                            {% set remaining = fee.amount - fee_payments %}
+                            <tr>
+                                <td>{{ fee.date.strftime('%d %b %Y') }}</td>
+                                <td>${{ "%.2f"|format(fee.amount) }}</td>
+                                <td>
+                                    {% if fee.fee_type == 'billing_period' %}
+                                    <span class="badge bg-primary">Billing Period</span>
+                                    {% elif fee.fee_type == 'opening_balance' %}
+                                    <span class="badge bg-secondary">Opening Balance</span>
+                                    {% elif fee.fee_type == 'ad_hoc' %}
+                                    <span class="badge bg-info text-dark">Ad Hoc</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">Billing Period</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if fee_payments >= fee.amount %}
+                                    <span class="badge bg-success">Paid ✅</span>
+                                    {% elif fee_payments > 0 %}
+                                    <span class="badge bg-warning text-dark">Partial 🟠</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Unpaid 🔴</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center my-4">No fees for this property</p>
+                {% endif %}
+                <a href="{{ url_for('fees') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i> Raise New Fee
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Payments -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-dark">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Payments</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_payments %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Reference</th>
+                                <th>Fee</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in recent_payments %}
+                            <tr>
+                                <td>{{ payment.date.strftime('%d %b %Y') }}</td>
+                                <td class="text-success">${{ "%.2f"|format(payment.amount) }}</td>
+                                <td class="text-muted">{{ payment.reference if payment.reference else "-" }}</td>
+                                <td>
+                                    {% if payment.fee %}
+                                        <span class="badge bg-secondary">{{ payment.fee.period or payment.fee.fee_type }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">Unallocated</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center my-4">No payments for this property</p>
+                {% endif %}
+                <a href="{{ url_for('reconciliation') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-file-import me-1"></i> Import Payments
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Timeline -->
+<div class="card mb-4 border-dark">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activity Timeline</h5>
+    </div>
+    <div class="card-body">
+        {% if timeline %}
+        <div class="timeline">
+            {% for item in timeline %}
+            <div class="timeline-item">
+                <div class="timeline-marker {{ 'bg-success' if item.type == 'payment' else 'bg-warning' }}">
+                    <i class="{{ 'fas fa-money-bill-wave' if item.type == 'payment' else 'fas fa-file-invoice-dollar' }}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">{{ item.description }}</h6>
+                        <div>
+                            <span class="{{ 'text-success' if item.type == 'payment' else 'text-danger' }}">
+                                {{ '$' + "%.2f"|format(item.amount) }}
+                            </span>
+                            <small class="text-muted ms-2">{{ item.date.strftime('%d %b %Y') }}</small>
+                        </div>
+                    </div>
+                    {% if item.type == 'fee' and item.item %}
+                    <div class="small text-muted">
+                        Type: {{ item.item.fee_type|capitalize }}
+                        {% if item.item.period %}
+                         | Period: {{ item.item.period }}
+                        {% endif %}
+                        {% if item.item.due_date %}
+                         | Due: {{ item.item.due_date.strftime('%d %b %Y') }}
+                        {% endif %}
+                    </div>
+                    {% elif item.type == 'payment' and item.item %}
+                    <div class="small text-muted">
+                        {% if item.item.reference %}
+                        Reference: {{ item.item.reference }}
+                        {% endif %}
+                        {% if item.item.description %}
+                         | {{ item.item.description }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center my-4">No activity recorded for this property</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 25px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12px;
+    height: 100%;
+    width: 2px;
+    background-color: var(--bs-gray-600);
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 25px;
+    width: 25px;
+    border-radius: 50%;
+    color: white;
+    z-index: 1;
+}
+
+.timeline-marker i {
+    font-size: 12px;
+}
+
+.timeline-content {
+    padding: 10px 15px;
+    border-radius: 5px;
+    background-color: var(--bs-gray-800);
+    margin-bottom: 5px;
+}
+</style>
+{% endblock %}

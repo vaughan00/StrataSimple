@@ -116,7 +116,12 @@
                     {% set due_now = property.get_due_now_amount(today) %}
                     
                     <tr>
-                        <td>{{ property.unit_number }}</td>
+                        <td>
+                            <a href="{{ url_for('property_detail', property_id=property.id) }}" class="link-light text-decoration-none">
+                                {{ property.unit_number }}
+                                <i class="fas fa-external-link-alt ms-1 small"></i>
+                            </a>
+                        </td>
                         <td>
                             {% set owner = property.get_owner() %}
                             {% if owner %}
