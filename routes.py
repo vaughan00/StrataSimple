@@ -440,6 +440,14 @@ def setup():
             db.session.add(new_property)
             db.session.commit()
             
+            # Log the activity
+            log_activity(
+                event_type='property_added',
+                description=f'Property {unit_number} was added to the system',
+                related_type='Property',
+                related_id=new_property.id
+            )
+            
             flash(f'Property {unit_number} added successfully', 'success')
             return redirect(url_for('setup'))
             
@@ -448,11 +456,20 @@ def setup():
             property_id = request.form.get('property_id')
             property = Property.query.get_or_404(property_id)
             
+            old_unit_number = property.unit_number
             property.unit_number = request.form.get('unit_number')
             property.description = request.form.get('description')
             # Entitlement fixed at 1.0
             
             db.session.commit()
+            
+            # Log the activity
+            log_activity(
+                event_type='property_updated',
+                description=f'Property {old_unit_number} was updated to {property.unit_number}',
+                related_type='Property',
+                related_id=property.id
+            )
             
             flash(f'Property {property.unit_number} updated successfully', 'success')
             return redirect(url_for('setup'))
@@ -773,6 +790,45 @@ def property_detail(property_id):
                           timeline=timeline,
                           today=today)
                           
+# Activity log page
+@app.route('/activity')
+def activity():
+    """Page showing system activity logs with filtering."""
+    # Get filter parameters
+    filter_type = request.args.get('event_type', '')
+    filter_id = request.args.get('related_id', '')
+    date_range = request.args.get('date_range', 'all')
+    
+    # Base query
+    query = ActivityLog.query
+    
+    # Apply event type filter
+    if filter_type:
+        query = query.filter(ActivityLog.event_type.like(f'%{filter_type}%'))
+    
+    # Apply related object ID filter
+    if filter_id and filter_id.isdigit():
+        query = query.filter_by(related_object_id=int(filter_id))
+    
+    # Apply date range filter
+    if date_range != 'all':
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if date_range == 'today':
+            query = query.filter(ActivityLog.timestamp >= today)
+        elif date_range == 'week':
+            query = query.filter(ActivityLog.timestamp >= today - timedelta(days=7))
+        elif date_range == 'month':
+            query = query.filter(ActivityLog.timestamp >= today - timedelta(days=30))
+    
+    # Get logs in reverse chronological order
+    logs = query.order_by(ActivityLog.timestamp.desc()).all()
+    
+    return render_template('activity.html', 
+                          logs=logs,
+                          filter_type=filter_type, 
+                          filter_id=filter_id,
+                          date_range=date_range)
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
