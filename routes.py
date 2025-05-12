@@ -552,10 +552,30 @@ def get_contacts():
             'phone': contact.phone,
             'is_owner': contact.is_owner,
             'owned_properties': owned_properties,
-            'managed_properties': managed_properties
+            'managed_properties': managed_properties,
+            'notes': contact.notes
         })
     
     return jsonify(contacts_data)
+
+@app.route('/api/contacts/<int:contact_id>')
+def get_contact(contact_id):
+    """API endpoint to get a specific contact by ID."""
+    contact = Contact.query.get_or_404(contact_id)
+    
+    owned_properties = [p.unit_number for p in contact.owned_properties]
+    managed_properties = [p.unit_number for p in contact.managed_properties]
+    
+    return jsonify({
+        'id': contact.id,
+        'name': contact.name,
+        'email': contact.email,
+        'phone': contact.phone,
+        'is_owner': contact.is_owner,
+        'notes': contact.notes,
+        'owned_properties': owned_properties,
+        'managed_properties': managed_properties
+    })
 
 @app.route('/api/properties/<int:property_id>/contacts')
 def get_property_contacts(property_id):

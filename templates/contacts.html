@@ -319,71 +319,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelEditBtn = document.getElementById('cancel-edit-btn');
     const deleteContactId = document.getElementById('delete-contact-id');
     
-    // Initialize Tabulator for contacts table if there are contacts
+    // Initialize edit buttons for contacts table
     if (document.getElementById('contactsTable')) {
-        // Fetch contacts data
-        fetch('/api/contacts')
-            .then(response => response.json())
-            .then(data => {
-                // Initialize Tabulator
-                const table = new Tabulator("#contactsTable", {
-                    data: data,
-                    layout: "fitColumns",
-                    responsiveLayout: "collapse",
-                    pagination: "local",
-                    paginationSize: 10,
-                    columns: [
-                        {title: "Name", field: "name", sorter: "string", headerFilter: true},
-                        {title: "Email", field: "email", sorter: "string"},
-                        {title: "Phone", field: "phone", sorter: "string"},
-                        {
-                            title: "Type", 
-                            field: "is_owner", 
-                            formatter: function(cell) {
-                                return cell.getValue() ? 'Owner' : 'Contact';
-                            }
-                        },
-                        {
-                            title: "Actions",
-                            formatter: function(cell) {
-                                const rowData = cell.getRow().getData();
-                                return `<button class="btn btn-sm btn-outline-primary edit-contact-btn" data-id="${rowData.id}">
-                                    <i class="fas fa-edit me-1"></i>Edit
-                                </button>`;
-                            },
-                            cellClick: function(e, cell) {
-                                if (e.target.classList.contains('edit-contact-btn') || 
-                                    e.target.parentElement.classList.contains('edit-contact-btn')) {
-                                    const id = cell.getRow().getData().id;
-                                    
-                                    // Find contact data
-                                    const contact = data.find(c => c.id === id);
-                                    if (!contact) return;
-                                    
-                                    // Set form to edit mode
-                                    contactAction.value = 'edit_contact';
-                                    contactId.value = id;
-                                    nameInput.value = contact.name;
-                                    emailInput.value = contact.email || '';
-                                    phoneInput.value = contact.phone || '';
-                                    isOwnerInput.checked = contact.is_owner;
-                                    notesInput.value = contact.notes || '';
-                                    
-                                    // Update UI for edit mode
-                                    contactFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Contact';
-                                    contactSubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
-                                    editControls.style.display = 'block';
-                                    deleteContactId.value = id;
-                                    
-                                    // Scroll to form
-                                    contactForm.scrollIntoView({behavior: 'smooth'});
-                                }
-                            }
-                        }
-                    ]
-                });
-            })
-            .catch(error => console.error('Error fetching contacts:', error));
+        // Add event listeners to edit buttons
+        const editButtons = document.querySelectorAll('.edit-contact-btn');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const contactId = this.getAttribute('data-id');
+                
+                // Fetch contact data for editing
+                fetch(`/api/contacts/${contactId}`)
+                    .then(response => response.json())
+                    .then(contact => {
+                        if (!contact) return;
+                        
+                        // Set form to edit mode
+                        contactAction.value = 'edit_contact';
+                        document.getElementById('contact-id').value = contactId;
+                        nameInput.value = contact.name;
+                        emailInput.value = contact.email || '';
+                        phoneInput.value = contact.phone || '';
+                        isOwnerInput.checked = contact.is_owner;
+                        notesInput.value = contact.notes || '';
+                        
+                        // Update UI for edit mode
+                        contactFormTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Contact';
+                        contactSubmitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+                        editControls.style.display = 'block';
+                        deleteContactId.value = contactId;
+                        
+                        // Scroll to form
+                        contactForm.scrollIntoView({behavior: 'smooth'});
+                    })
+                    .catch(error => console.error('Error fetching contact details:', error));
+            });
+        });
     }
     
     // Reset form to add mode
