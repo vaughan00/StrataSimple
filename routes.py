@@ -206,8 +206,24 @@ def reconciliation():
                 # Debug info
                 print(f"Transaction {i}: Property ID={property_id}, Fee ID={fee_id}, Expense ID={expense_id}")
                 
-                # Check if this is a negative transaction (expense)
-                amount = float(request.form.getlist('amount')[i])
+                # Get the amount from the session data rather than form
+                try:
+                    amount_list = request.form.getlist('amount')
+                    if i < len(amount_list):
+                        amount = float(amount_list[i])
+                    else:
+                        # Try to get from session data if available
+                        session_transactions = session.get('transactions', [])
+                        if i < len(session_transactions):
+                            amount = float(session_transactions[i]['amount'])
+                        else:
+                            # Default to 0 if we can't find it
+                            amount = 0
+                            print(f"WARNING: Could not find amount for transaction {i}")
+                except (ValueError, IndexError) as e:
+                    print(f"Error getting amount for transaction {i}: {str(e)}")
+                    amount = 0
+                
                 is_expense = amount < 0
                 
                 # Debug expense ID
@@ -218,50 +234,78 @@ def reconciliation():
                     # Mark the expense as paid
                     expense = Expense.query.get(expense_id)
                     if expense:
+                        print(f"Found expense to mark as paid: ID={expense.id}, Name={expense.name}, Amount=${expense.amount}")
+                        
                         expense.paid = True
                         expense.paid_date = datetime.now()
+                        expense.matched_transaction_id = transaction_id
                         
                         # Log the activity
                         log_activity(
                             event_type='expense_paid',
-                            description=f'Expense "{expense.name}" of ${expense.amount} marked as paid',
+                            description=f'Expense "{expense.name}" of ${expense.amount} marked as paid through bank reconciliation',
                             related_type='Expense',
                             related_id=expense.id
                         )
                         
+                        db.session.commit()
                         confirmed_count += 1
                         continue
+                    else:
+                        print(f"ERROR: Could not find expense with ID {expense_id}")
 
                 # For incoming payments - skip if no property selected
                 if not is_expense and not property_id:
                     continue
                 
                 # Get transaction details from form
-                date_str = request.form.getlist('date')[i]
-                # Amount was already parsed above
-                description = request.form.getlist('description')[i]
-                reference = request.form.getlist('reference')[i]
+                try:
+                    date_list = request.form.getlist('date')
+                    if i < len(date_list):
+                        date_str = date_list[i]
+                    else:
+                        # Try to get from session data if available
+                        session_transactions = session.get('transactions', [])
+                        if i < len(session_transactions):
+                            date_str = session_transactions[i]['date']
+                        else:
+                            # Default to today if we can't find it
+                            date_str = datetime.now().strftime('%Y-%m-%d')
+                            print(f"WARNING: Could not find date for transaction {i}")
+                    
+                    # Amount was already parsed above
+                    description_list = request.form.getlist('description')
+                    description = description_list[i] if i < len(description_list) else "Unknown"
+                    
+                    reference_list = request.form.getlist('reference')
+                    reference = reference_list[i] if i < len(reference_list) else "Unknown"
+                    
+                    date = datetime.strptime(date_str, '%Y-%m-%d')
+                except (ValueError, IndexError) as e:
+                    print(f"Error processing date/description/reference for transaction {i}: {str(e)}")
+                    date = datetime.now()
                 
-                date = datetime.strptime(date_str, '%Y-%m-%d')
+                # Create payment record for incoming payments only
+                # We only need this for positive amounts - negative amounts update the expense record
+                if not is_expense:
+                    new_payment = Payment(
+                        property_id=property_id,
+                        fee_id=fee_id,
+                        amount=amount,
+                        date=date,
+                        description=description,
+                        reference=reference,
+                        transaction_id=transaction_id,
+                        reconciled=True,
+                        confirmed=True
+                    )
+                    db.session.add(new_payment)
                 
-                # Create payment record
-                new_payment = Payment(
-                    property_id=property_id,
-                    fee_id=fee_id,
-                    amount=amount,
-                    date=date,
-                    description=description,
-                    reference=reference,
-                    transaction_id=transaction_id,
-                    reconciled=True,
-                    confirmed=True
-                )
-                db.session.add(new_payment)
-                
-                # Update property balance
-                property = Property.query.get(property_id)
-                if property:
-                    property.balance += amount
+                # Update property balance - only for income transactions 
+                if not is_expense and property_id:
+                    property = Property.query.get(property_id)
+                    if property:
+                        property.balance += amount
                     
                     # Log the payment activity
                     fee_info = ""
