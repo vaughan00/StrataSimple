@@ -187,7 +187,18 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <select class="form-select fee-select" name="fee_id" {% if payment.is_duplicate %}disabled{% endif %}>
+                                {% if is_expense %}
+                                <!-- No second field needed for expenses -->
+                                {% if payment.suggested_expense %}
+                                <small class="d-block text-muted">
+                                    Due: {{ payment.suggested_expense.due_date }}
+                                    <br>
+                                    {{ payment.suggested_expense.description if payment.suggested_expense.description else "No description" }}
+                                </small>
+                                {% endif %}
+                                {% else %}
+                                <!-- Fee selection for incoming payments -->
+                                <select class="form-select fee-select" name="fee_{{ payment.transaction_id }}" {% if payment.is_duplicate %}disabled{% endif %}>
                                     <option value="">-- No Fee --</option>
                                     {% for fee in unpaid_fees %}
                                     {% if payment.suggested_property and fee.property_id == payment.suggested_property.id %}
@@ -207,13 +218,28 @@
                                     {% endif %}
                                 </small>
                                 {% endif %}
+                                {% endif %}
                             </td>
                             <td>
+                                {% if payment.is_duplicate %}
+                                <button type="button" class="btn btn-outline-warning btn-sm" disabled>Possible Duplicate</button>
+                                {% else %}
                                 <div class="form-check">
-                                    <input class="form-check-input exclude-check" type="checkbox" name="exclude" value="{{ loop.index0 }}" 
-                                        {% if payment.is_duplicate %}checked{% endif %}>
-                                    <label class="form-check-label">Exclude</label>
+                                    <input class="form-check-input" type="checkbox" name="confirm_transactions" id="confirm_{{ payment.transaction_id }}" 
+                                            value="{{ payment.transaction_id }}" 
+                                            {% if (payment.suggested_property and not is_expense) or (payment.suggested_expense and is_expense) %}checked{% endif %}>
+                                    <label class="form-check-label" for="confirm_{{ payment.transaction_id }}">
+                                        Confirm
+                                    </label>
                                 </div>
+                                <div class="form-check">
+                                    <input class="form-check-input exclude-checkbox" type="checkbox" name="exclude_transactions" id="exclude_{{ payment.transaction_id }}" 
+                                            value="{{ payment.transaction_id }}">
+                                    <label class="form-check-label" for="exclude_{{ payment.transaction_id }}">
+                                        Exclude
+                                    </label>
+                                </div>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
