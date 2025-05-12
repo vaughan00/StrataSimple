@@ -27,6 +27,10 @@
         font-weight: bold;
         color: #007bff;
     }
+    .expense-match {
+        font-weight: bold;
+        color: #6610f2;
+    }
     .badge-duplicate {
         background-color: #dc3545;
         color: white;
@@ -35,8 +39,14 @@
         opacity: 0.5;
         text-decoration: line-through;
     }
-    .property-select, .fee-select {
+    .property-select, .fee-select, .expense-select {
         max-width: 250px;
+    }
+    .transaction-outgoing {
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+    .transaction-incoming {
+        background-color: rgba(40, 167, 69, 0.1);
     }
 </style>
 {% endblock %}
@@ -44,8 +54,8 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-3">Payment Reconciliation</h1>
-        <p class="text-muted">Upload bank statement CSV to reconcile incoming payments</p>
+        <h1 class="mb-3">Bank Reconciliation</h1>
+        <p class="text-muted">Upload bank statement CSV to reconcile incoming payments and outgoing expenses</p>
     </div>
 </div>
 
@@ -99,15 +109,18 @@
                             <th>Date</th>
                             <th>Amount</th>
                             <th>Description</th>
-                            <th>Property</th>
-                            <th>Fee</th>
+                            <th>Property/Expense</th>
+                            <th>Fee/Details</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for payment in transactions %}
-                        <tr data-duplicate="{{ payment.is_duplicate|lower }}" data-suggested="{{ (payment.suggested_property is not none)|lower }}" 
-                            class="{% if payment.is_duplicate %}table-danger{% elif payment.suggested_property %}{% if payment.suggested_property.confidence > 80 %}match-confidence-high{% elif payment.suggested_property.confidence > 50 %}match-confidence-medium{% endif %}{% endif %}">
+                        {% set is_expense = payment.amount < 0 %}
+                        <tr data-duplicate="{{ payment.is_duplicate|lower }}" 
+                            data-suggested="{{ (payment.suggested_property is not none or payment.suggested_expense is not none)|lower }}"
+                            data-expense="{{ is_expense|lower }}" 
+                            class="{% if is_expense %}transaction-outgoing{% else %}transaction-incoming{% endif %} {% if payment.is_duplicate %}table-danger{% elif payment.suggested_property and not is_expense %}{% if payment.suggested_property.confidence > 80 %}match-confidence-high{% elif payment.suggested_property.confidence > 50 %}match-confidence-medium{% endif %}{% endif %}">
                             
                             <input type="hidden" name="transaction_id" value="{{ payment.transaction_id }}">
                             <input type="hidden" name="date" value="{{ payment.date.strftime('%Y-%m-%d') }}">
@@ -116,10 +129,13 @@
                             <input type="hidden" name="reference" value="{{ payment.reference }}">
                             
                             <td>{{ payment.date.strftime('%d %b %Y') }}</td>
-                            <td>${{ "%.2f"|format(payment.amount) }}</td>
+                            <td class="{% if is_expense %}text-danger{% else %}text-success{% endif %}">
+                                ${{ "%.2f"|format(payment.amount|abs) }}
+                                {% if is_expense %}<i class="fas fa-arrow-alt-circle-down text-danger ms-1"></i>{% else %}<i class="fas fa-arrow-alt-circle-up text-success ms-1"></i>{% endif %}
+                            </td>
                             <td>
                                 {% if payment.is_duplicate %}
-                                <span class="badge badge-duplicate me-2">Possible Duplicate</span>
+                                <span class="badge bg-danger me-2">Possible Duplicate</span>
                                 {% endif %}
                                 <strong>{{ payment.reference }}</strong>
                                 {% if payment.description and payment.description != payment.reference %}
@@ -127,7 +143,27 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <select class="form-select property-select" name="property_id" {% if payment.is_duplicate %}disabled{% endif %}>
+                                {% if is_expense %}
+                                <!-- For outgoing expenses -->
+                                <select class="form-select expense-select" name="expense_{{ payment.transaction_id }}" {% if payment.is_duplicate %}disabled{% endif %}>
+                                    <option value="">-- Select Expense --</option>
+                                    {% for expense in unpaid_expenses %}
+                                    <option value="{{ expense.id }}" 
+                                        {% if payment.suggested_expense and payment.suggested_expense.id == expense.id %}selected{% endif %}>
+                                        {{ expense.name }} - ${{ "%.2f"|format(expense.amount) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if payment.suggested_expense %}
+                                <small class="d-block mt-1 expense-match">
+                                    <i class="fas fa-check-circle me-1"></i>Suggested expense match: 
+                                    {{ payment.suggested_expense.name }} 
+                                    ({% if payment.suggested_expense.exact_match %}Exact{% else %}Similar{% endif %} amount)
+                                </small>
+                                {% endif %}
+                                {% else %}
+                                <!-- For incoming payments -->
+                                <select class="form-select property-select" name="property_{{ payment.transaction_id }}" {% if payment.is_duplicate %}disabled{% endif %}>
                                     <option value="">-- Select Property --</option>
                                     {% for property in properties %}
                                     <option value="{{ property.id }}" 
@@ -147,6 +183,7 @@
                                         <i class="fas fa-external-link-alt ms-1 small"></i>
                                     </a>
                                 </small>
+                                {% endif %}
                                 {% endif %}
                             </td>
                             <td>
