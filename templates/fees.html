@@ -190,7 +190,12 @@
                     {% set total_payments = property.payments|sum(attribute='amount') %}
                     {% set outstanding = total_fees - total_payments %}
                     <tr>
-                        <td>{{ property.unit_number }}</td>
+                        <td>
+                            <a href="{{ url_for('property_detail', property_id=property.id) }}" class="text-white">
+                                {{ property.unit_number }}
+                                <i class="fas fa-external-link-alt ms-1 small"></i>
+                            </a>
+                        </td>
                         <td>{% if property.get_owner() %}{{ property.get_owner().name }}{% else %}<span class="text-warning">No owner assigned</span>{% endif %}</td>
                         <td>${{ "%.2f"|format(total_fees) }}</td>
                         <td>${{ "%.2f"|format(total_payments) }}</td>
