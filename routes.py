@@ -334,11 +334,24 @@ def reconciliation():
                         # Take abs of negative amount
                         actual_amount = abs(amount)
                     
+                    # Get transaction date - use the date from the transaction or today if not available
+                    date_str = request.form.get(f'date_{i}')
+                    if date_str:
+                        try:
+                            date = datetime.strptime(date_str, '%Y-%m-%d')
+                        except ValueError:
+                            date = datetime.now()
+                    else:
+                        date = datetime.now()
+                    
+                    # Get transaction reference
+                    reference = request.form.get(f'reference_{i}', '')
+                    
                     # Mark the expense as paid
                     expense = Expense.query.get(expense_id)
                     if expense:
                         print(f"Found expense to mark as paid: ID={expense.id}, Name={expense.name}, Amount=${expense.amount}")
-                        print(f"Transaction amount: ${actual_amount}, Transaction ID: {transaction_id}")
+                        print(f"Transaction date: {date}, amount: ${actual_amount}, reference: {reference}, ID: {transaction_id}")
                         
                         # CRITICAL: Set the paid status
                         expense.paid = True
@@ -353,8 +366,26 @@ def reconciliation():
                             related_id=expense.id
                         )
                         
+                        # Create a new payment record with negative amount to track the expense
+                        new_payment = Payment(
+                            property_id=None,  # No property associated with expense
+                            fee_id=None,       # No fee associated with expense
+                            amount=-actual_amount,  # Use negative amount to indicate outgoing payment
+                            date=date,
+                            description=f"Payment for expense: {expense.name}",
+                            reference=reference,
+                            transaction_id=transaction_id,
+                            reconciled=True,
+                            confirmed=True
+                        )
+                        db.session.add(new_payment)
+                        
                         # Commit the transaction immediately to ensure it's saved
                         db.session.commit()
+                        
+                        # Debug info
+                        print(f"Created payment record for expense: ID={new_payment.id}, Amount=${new_payment.amount}")
+                        
                         confirmed_count += 1
                         
                         # Verify the expense was updated
@@ -450,6 +481,7 @@ def reconciliation():
             return redirect(url_for('index'))
     
     # GET request - show previously confirmed payments
+    # Include both incoming payments (positive amounts) and outgoing expense payments (negative amounts)
     recently_confirmed = Payment.query.filter_by(confirmed=True).order_by(Payment.created_at.desc()).limit(10).all()
     
     return render_template('reconciliation.html', 
