@@ -283,11 +283,11 @@
     </div>
 </div>
 {% elif recently_confirmed %}
-<!-- Recently Confirmed Payments -->
+<!-- Recently Confirmed Transactions -->
 <div class="card mb-4">
     <div class="card-header bg-success text-white">
         <h5 class="mb-0">
-            <i class="fas fa-check-circle me-2"></i>Recently Confirmed Payments
+            <i class="fas fa-check-circle me-2"></i>Recently Confirmed Transactions
             <span class="badge bg-light text-dark ms-2">{{ recently_confirmed|length }}</span>
         </h5>
     </div>
@@ -297,30 +297,42 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Date</th>
-                        <th>Property</th>
+                        <th>Type</th>
                         <th>Amount</th>
                         <th>Reference</th>
-                        <th>Fee</th>
+                        <th>Details</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for payment in recently_confirmed %}
-                    <tr>
+                    {% set is_expense = payment.amount < 0 %}
+                    <tr class="{% if is_expense %}table-danger-subtle{% endif %}">
                         <td>{{ payment.date.strftime('%d %b %Y') }}</td>
                         <td>
+                            {% if is_expense %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-arrow-alt-circle-down me-1"></i>Expense
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-arrow-alt-circle-up me-1"></i>Income
+                            </span>
                             {% if payment.property %}
-                            <a href="{{ url_for('property_detail', property_id=payment.property.id) }}" class="text-info">
+                            <a href="{{ url_for('property_detail', property_id=payment.property.id) }}" class="ms-2 text-info">
                                 {{ payment.property.unit_number }}
                                 <i class="fas fa-external-link-alt ms-1 small"></i>
                             </a>
-                            {% else %}
-                            <em>Unknown</em>
+                            {% endif %}
                             {% endif %}
                         </td>
-                        <td class="text-success">${{ "%.2f"|format(payment.amount) }}</td>
+                        <td class="{% if is_expense %}text-danger{% else %}text-success{% endif %}">
+                            ${{ "%.2f"|format(payment.amount|abs) }}
+                        </td>
                         <td>{{ payment.reference }}</td>
                         <td>
-                            {% if payment.fee %}
+                            {% if is_expense %}
+                            <em>Expense Payment</em>
+                            {% elif payment.fee %}
                             {{ payment.fee.period }} (${{ "%.2f"|format(payment.fee.amount) }})
                             {% else %}
                             <em>No Fee</em>
