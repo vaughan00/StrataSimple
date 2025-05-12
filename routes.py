@@ -37,9 +37,14 @@ def index():
     for fee in overdue_fees:
         print(f"  Fee ID: {fee.id}, Due date: {fee.due_date}, Amount: {fee.amount}, Property: {fee.property_id}")
     
-    # Get recent payments and fees
-    recent_payments = Payment.query.order_by(Payment.date.desc()).limit(5).all()
+    # Get recent payments, fees, and expenses
+    recent_payments = Payment.query.filter(Payment.amount > 0).order_by(Payment.date.desc()).limit(5).all()
     recent_fees = Fee.query.order_by(Fee.date.desc()).limit(5).all()
+    recent_expenses = Expense.query.order_by(Expense.due_date.desc()).limit(5).all()
+    
+    # Calculate total unpaid expenses
+    unpaid_expenses = Expense.query.filter(Expense.paid == False).all()
+    total_unpaid_expenses = sum(expense.amount for expense in unpaid_expenses)
     
     # Debug info
     print("RECENT FEES INFO:")
@@ -58,15 +63,24 @@ def index():
                 if not fee.paid and fee.is_overdue(today):
                     print(f"    Fee ID: {fee.id}, Amount: ${fee.amount:.2f}, Paid Amount: ${fee.paid_amount:.2f}, Remaining: ${fee.remaining_amount:.2f}, Due Date: {fee.due_date.strftime('%Y-%m-%d')}")
     
+    # Debug expenses
+    print("\nRECENT EXPENSES INFO:")
+    for expense in recent_expenses:
+        print(f"  Expense ID: {expense.id}, Name: {expense.name}, Amount: ${expense.amount:.2f}, Paid: {expense.paid}, Due Date: {expense.due_date.strftime('%Y-%m-%d')}")
+        
+    print(f"TOTAL UNPAID EXPENSES: ${total_unpaid_expenses:.2f}")
+    
     return render_template('dashboard.html', 
                            properties=properties, 
                            total_balance=total_balance,
                            total_fees=total_fees,
                            total_paid=total_paid,
                            due_now=due_now,
+                           total_unpaid_expenses=total_unpaid_expenses,
                            today=today,
                            recent_payments=recent_payments,
-                           recent_fees=recent_fees)
+                           recent_fees=recent_fees,
+                           recent_expenses=recent_expenses)
 
 @app.route('/api/properties')
 def get_properties():

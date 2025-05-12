@@ -51,10 +51,39 @@
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title text-success">
-                    <i class="fas fa-check-circle me-2"></i>Paid To Date
+                    <i class="fas fa-check-circle me-2"></i>Income Received
                 </h5>
                 <h2 class="mt-3 mb-0">${{ "%.2f"|format(total_paid) }}</h2>
                 <p class="text-muted mb-0">Total payments received</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title text-info">
+                    <i class="fas fa-chart-line me-2"></i>Financial Health
+                </h5>
+                {% set net_after_expenses = total_balance - total_unpaid_expenses %}
+                <h2 class="mt-3 mb-0 {{ 'text-success' if net_after_expenses >= 0 else 'text-danger' }}">
+                    ${{ "%.2f"|format(net_after_expenses) }}
+                </h2>
+                <p class="text-muted mb-0">Net position after unpaid expenses</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title text-danger">
+                    <i class="fas fa-file-invoice me-2"></i>Unpaid Expenses
+                </h5>
+                <h2 class="mt-3 mb-0">${{ "%.2f"|format(total_unpaid_expenses) }}</h2>
+                <p class="text-muted mb-0">Total expenses pending payment</p>
             </div>
         </div>
     </div>
@@ -166,7 +195,7 @@
 <!-- Recent Activity -->
 <div class="row">
     <!-- Recent Payments -->
-    <div class="col-md-6 mb-4">
+    <div class="col-md-4 mb-4">
         <div class="card h-100">
             <div class="card-header bg-dark text-white">
                 <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Recent Payments</h5>
@@ -203,7 +232,7 @@
     </div>
     
     <!-- Recent Fees -->
-    <div class="col-md-6 mb-4">
+    <div class="col-md-4 mb-4">
         <div class="card h-100">
             <div class="card-header bg-dark text-white">
                 <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Recent Fees</h5>
@@ -217,8 +246,6 @@
                                 <th>Date</th>
                                 <th>Property</th>
                                 <th>Amount</th>
-                                <th>Remaining</th>
-                                <th>Type</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -230,24 +257,6 @@
                                 <td>{{ fee.date.strftime('%d %b %Y') }}</td>
                                 <td>{{ fee.property.unit_number }}</td>
                                 <td>${{ "%.2f"|format(fee.amount) }}</td>
-                                <td>
-                                    {% if remaining > 0 %}
-                                    <span class="text-danger">${{ "%.2f"|format(remaining) }}</span>
-                                    {% else %}
-                                    <span class="text-success">$0.00</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if fee.fee_type == 'billing_period' %}
-                                    <span class="badge bg-primary">Billing Period</span>
-                                    {% elif fee.fee_type == 'opening_balance' %}
-                                    <span class="badge bg-secondary">Opening Balance</span>
-                                    {% elif fee.fee_type == 'ad_hoc' %}
-                                    <span class="badge bg-info">Ad Hoc</span>
-                                    {% else %}
-                                    <span class="badge bg-primary">Billing Period</span>
-                                    {% endif %}
-                                </td>
                                 <td>
                                     {% if fee_payments >= fee.amount %}
                                     <span class="badge bg-success">Paid ✅</span>
@@ -264,6 +273,54 @@
                 </div>
                 {% else %}
                 <p class="text-muted text-center my-4">No recent fees</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Expenses -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-invoice me-2"></i>Recent Expenses
+                    <span class="ms-2 badge bg-danger">${{ "%.2f"|format(total_unpaid_expenses) }} unpaid</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_expenses %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped table-dark">
+                        <thead>
+                            <tr>
+                                <th>Due Date</th>
+                                <th>Name</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in recent_expenses %}
+                            <tr>
+                                <td>{{ expense.due_date.strftime('%d %b %Y') }}</td>
+                                <td>{{ expense.name }}</td>
+                                <td class="text-danger">${{ "%.2f"|format(expense.amount) }}</td>
+                                <td>
+                                    {% if expense.paid %}
+                                    <span class="badge bg-success">Paid ✅</span>
+                                    {% elif expense.is_overdue(today) %}
+                                    <span class="badge bg-danger">Overdue 🔴</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Pending 🟠</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center my-4">No recent expenses</p>
                 {% endif %}
             </div>
         </div>
