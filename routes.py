@@ -12,10 +12,21 @@ from utils import process_csv, analyze_payments
 @app.route('/')
 def index():
     """Main dashboard showing financial status of all properties."""
+    today = datetime.now()
     properties = Property.query.all()
     total_balance = sum(prop.balance for prop in properties)
+    
+    # Calculate total unpaid fees
     total_fees = db.session.query(db.func.sum(Fee.amount)).filter_by(paid=False).scalar() or 0
+    
+    # Calculate total payments
     total_paid = db.session.query(db.func.sum(Payment.amount)).scalar() or 0
+    
+    # Calculate fees due now (where due_date <= today)
+    due_now = db.session.query(db.func.sum(Fee.amount - Fee.paid_amount)) \
+              .filter(Fee.paid == False) \
+              .filter(Fee.due_date <= today) \
+              .scalar() or 0
     
     # Get recent payments and fees
     recent_payments = Payment.query.order_by(Payment.date.desc()).limit(5).all()
@@ -32,6 +43,8 @@ def index():
                            total_balance=total_balance,
                            total_fees=total_fees,
                            total_paid=total_paid,
+                           due_now=due_now,
+                           today=today,
                            recent_payments=recent_payments,
                            recent_fees=recent_fees)
 
