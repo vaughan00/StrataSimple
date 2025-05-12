@@ -197,5 +197,39 @@ class ActivityLog(db.Model):
             return Fee.query.get(self.related_object_id)
         elif self.related_object_type == 'Payment':
             return Payment.query.get(self.related_object_id)
+        elif self.related_object_type == 'Expense':
+            return Expense.query.get(self.related_object_id)
         
         return None
+        
+class Expense(db.Model):
+    """Model for strata expenses/outgoing payments."""
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(200))
+    due_date = db.Column(db.DateTime, nullable=False)
+    paid = db.Column(db.Boolean, default=False)
+    paid_date = db.Column(db.DateTime)
+    invoice_filename = db.Column(db.String(255))  # Store the uploaded invoice file name
+    matched_transaction_id = db.Column(db.String(100))  # Link to a bank transaction if matched
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<Expense {self.name}: ${self.amount}>"
+        
+    def is_overdue(self, reference_date=None):
+        """
+        Check if the expense is overdue based on the due_date.
+        Args:
+            reference_date: Date to compare against (defaults to current date)
+        Returns:
+            bool: True if expense is overdue and not paid
+        """
+        if self.paid:
+            return False
+            
+        if not reference_date:
+            reference_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+        return self.due_date <= reference_date

@@ -1,13 +1,13 @@
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from flask import render_template, redirect, url_for, request, flash, jsonify, session, abort
+from flask import render_template, redirect, url_for, request, flash, jsonify, session, abort, send_from_directory
 from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
-from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog
-from utils import process_csv, analyze_payments, log_activity
+from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense
+from utils import process_csv, analyze_payments, log_activity, reconcile_expenses
 
 @app.route('/')
 def index():
@@ -131,6 +131,9 @@ def reconciliation():
                     payments = process_csv(content)
                     analyzed_payments = analyze_payments(payments)
                     
+                    # Also analyze for expense matching
+                    analyzed_payments = reconcile_expenses(analyzed_payments)
+                    
                     # Store in session for later confirmation
                     session_data = {
                         'transactions': [
@@ -159,7 +162,8 @@ def reconciliation():
                     return render_template('reconciliation.html', 
                                           transactions=analyzed_payments,
                                           properties=Property.query.all(),
-                                          unpaid_fees=Fee.query.filter_by(paid=False).all())
+                                          unpaid_fees=Fee.query.filter_by(paid=False).all(),
+                                          unpaid_expenses=Expense.query.filter_by(paid=False).all())
                 
                 except Exception as e:
                     flash(f'Error processing CSV: {str(e)}', 'danger')
@@ -914,3 +918,154 @@ def not_found_error(error):
 def internal_error(error):
     db.session.rollback()
     return render_template('500.html'), 500
+    
+# Expenses Routes
+@app.route('/expenses', methods=['GET', 'POST'])
+def expenses():
+    """Page for managing strata expenses."""
+    # POST request - create a new expense
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name')
+        amount = float(request.form.get('amount'))
+        description = request.form.get('description')
+        due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
+        
+        # Create a new expense record
+        new_expense = Expense(
+            name=name,
+            amount=amount,
+            description=description,
+            due_date=due_date,
+            paid=False
+        )
+        
+        # Check if an invoice was uploaded
+        if 'invoice' in request.files and request.files['invoice'].filename:
+            invoice_file = request.files['invoice']
+            
+            # Generate a secure filename to prevent path traversal
+            filename = secure_filename(invoice_file.filename)
+            # Add timestamp to filename to prevent collisions
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            filename = f"{timestamp}_{filename}"
+            
+            # Save the file
+            filepath = os.path.join('static/uploads/invoices', filename)
+            invoice_file.save(filepath)
+            
+            # Save the filename in the expense record
+            new_expense.invoice_filename = filename
+        
+        # Save to database
+        db.session.add(new_expense)
+        db.session.commit()
+        
+        # Log the activity
+        log_activity(
+            event_type='expense_added',
+            description=f'Added new expense: {name} (${amount:.2f})',
+            related_type='Expense',
+            related_id=new_expense.id
+        )
+        
+        flash(f'Expense "{name}" has been added successfully.', 'success')
+        return redirect(url_for('expenses'))
+    
+    # GET request - display expenses
+    expenses = Expense.query.order_by(Expense.due_date.desc()).all()
+    today = datetime.now()
+    
+    return render_template('expenses.html', expenses=expenses, today=today)
+
+@app.route('/mark_expense_paid', methods=['POST'])
+def mark_expense_paid():
+    """Mark an expense as paid."""
+    expense_id = request.form.get('expense_id')
+    paid_date_str = request.form.get('paid_date')
+    
+    # Convert paid date string to datetime
+    if paid_date_str:
+        paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d')
+    else:
+        paid_date = datetime.now()
+    
+    expense = Expense.query.get_or_404(expense_id)
+    expense.paid = True
+    expense.paid_date = paid_date
+    
+    db.session.commit()
+    
+    # Log the activity
+    log_activity(
+        event_type='expense_paid',
+        description=f'Marked expense "{expense.name}" (${expense.amount:.2f}) as paid',
+        related_type='Expense',
+        related_id=expense.id
+    )
+    
+    flash(f'Expense "{expense.name}" has been marked as paid.', 'success')
+    return redirect(url_for('expenses'))
+
+@app.route('/delete_expense', methods=['POST'])
+def delete_expense():
+    """Delete an expense."""
+    expense_id = request.form.get('expense_id')
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Store expense details before deletion
+    expense_name = expense.name
+    expense_amount = expense.amount
+    
+    # If there's an invoice, delete it
+    if expense.invoice_filename:
+        try:
+            os.remove(os.path.join('static/uploads/invoices', expense.invoice_filename))
+        except FileNotFoundError:
+            # File might have been deleted or moved
+            pass
+    
+    # Delete from database
+    db.session.delete(expense)
+    db.session.commit()
+    
+    # Log the deletion
+    log_activity(
+        event_type='expense_deleted',
+        description=f'Deleted expense: {expense_name} (${expense_amount:.2f})'
+    )
+    
+    flash(f'Expense "{expense_name}" has been deleted.', 'success')
+    return redirect(url_for('expenses'))
+
+@app.route('/view_invoice/<int:expense_id>')
+def view_invoice(expense_id):
+    """View an expense's invoice file."""
+    expense = Expense.query.get_or_404(expense_id)
+    
+    if not expense.invoice_filename:
+        flash('No invoice file found for this expense.', 'warning')
+        return redirect(url_for('expenses'))
+    
+    # Return the file for inline display in the browser
+    return send_from_directory(
+        'static/uploads/invoices',
+        expense.invoice_filename,
+        as_attachment=False
+    )
+
+@app.route('/download_invoice/<int:expense_id>')
+def download_invoice(expense_id):
+    """Download an expense's invoice file."""
+    expense = Expense.query.get_or_404(expense_id)
+    
+    if not expense.invoice_filename:
+        flash('No invoice file found for this expense.', 'warning')
+        return redirect(url_for('expenses'))
+    
+    # Return the file as an attachment for download
+    return send_from_directory(
+        'static/uploads/invoices',
+        expense.invoice_filename,
+        as_attachment=True
+    )

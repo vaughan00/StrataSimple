@@ -54,6 +54,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/expenses' %}active{% endif %}" href="{{ url_for('expenses') }}">
+                            <i class="fas fa-file-invoice-dollar me-1"></i> Manage Expenses
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.path == '/activity' %}active{% endif %}" href="{{ url_for('activity') }}">
                             <i class="fas fa-history me-1"></i> Activity Log
                         </a>

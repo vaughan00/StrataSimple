@@ -330,3 +330,65 @@ def analyze_payments(payments):
     payments = suggest_property_matches(payments)
     payments = suggest_fee_matches(payments)
     return payments
+    
+def reconcile_expenses(transactions):
+    """
+    Analyze bank transactions to find potential expense matches.
+    For each transaction with a negative amount (outgoing payment), try to match with unpaid expenses.
+    
+    Args:
+        transactions: List of transaction dictionaries with date, amount, description
+        
+    Returns:
+        transactions: Updated with suggested_expense field
+    """
+    from models import Expense
+    
+    # Only process negative transactions (outgoing payments)
+    for transaction in transactions:
+        # Skip positive transactions (incoming payments)
+        if transaction['amount'] >= 0:
+            transaction['suggested_expense'] = None
+            continue
+            
+        # Convert to positive amount for comparison with expenses
+        positive_amount = abs(transaction['amount'])
+        
+        # Find unpaid expenses that match the amount
+        matching_expenses = Expense.query.filter_by(
+            paid=False, 
+            amount=positive_amount
+        ).all()
+        
+        if matching_expenses:
+            # For now, just suggest the first match
+            # Future enhancement: Implement fuzzy matching on description or date proximity
+            transaction['suggested_expense'] = {
+                'id': matching_expenses[0].id,
+                'name': matching_expenses[0].name,
+                'description': matching_expenses[0].description,
+                'amount': matching_expenses[0].amount,
+                'due_date': matching_expenses[0].due_date.strftime('%Y-%m-%d'),
+                'exact_match': True
+            }
+        else:
+            # Try to find close matches (within 5% of the amount)
+            close_expenses = Expense.query.filter(
+                Expense.paid == False,
+                Expense.amount > positive_amount * 0.95,
+                Expense.amount < positive_amount * 1.05
+            ).all()
+            
+            if close_expenses:
+                transaction['suggested_expense'] = {
+                    'id': close_expenses[0].id,
+                    'name': close_expenses[0].name,
+                    'description': close_expenses[0].description,
+                    'amount': close_expenses[0].amount,
+                    'due_date': close_expenses[0].due_date.strftime('%Y-%m-%d'),
+                    'exact_match': False
+                }
+            else:
+                transaction['suggested_expense'] = None
+                
+    return transactions
