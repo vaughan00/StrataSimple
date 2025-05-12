@@ -229,31 +229,78 @@ def reconciliation():
                 # Debug info
                 print(f"Transaction {i}: Property ID={property_id}, Fee ID={fee_id}, Expense ID={expense_id}")
                 
-                # Get the amount directly from hidden form field
+                # Get the amount directly from indexed hidden form field
                 try:
-                    # Get amount from the hidden input field
-                    amount_key = f'amount'
-                    amount_list = request.form.getlist(amount_key)
+                    # First try to get the indexed amount
+                    amount_key = f'amount_{i}'
+                    amount_value = request.form.get(amount_key)
                     
-                    # Find the correct amount at the same index
-                    if i < len(amount_list):
-                        amount = float(amount_list[i])
+                    if amount_value:
+                        # If we have the indexed amount value, use it
+                        amount = float(amount_value)
+                        print(f"Found amount {amount} from indexed field {amount_key}")
                     else:
-                        # Fallback to session data
-                        session_transactions = session.get('transactions', [])
-                        for tx in session_transactions:
-                            if tx.get('transaction_id') == transaction_id:
-                                amount = float(tx.get('amount', 0))
-                                print(f"Found transaction {transaction_id} with amount {amount} from session")
-                                break
+                        # Try second indexed field format
+                        transaction_id_key = f'transaction_id_{i}'
+                        transaction_id_index = request.form.get(transaction_id_key)
+                        
+                        if transaction_id_index:
+                            amount_key = f'amount_{transaction_id_index}'
+                            amount_value = request.form.get(amount_key)
+                            
+                            if amount_value:
+                                amount = float(amount_value)
+                                print(f"Found amount {amount} from transaction indexed field {amount_key}")
+                            else:
+                                # Fallback to list data
+                                amount_list = request.form.getlist('amount')
+                                if i < len(amount_list):
+                                    amount = float(amount_list[i])
+                                    print(f"Found amount {amount} from amount list position {i}")
+                                else:
+                                    # Final fallback to session data
+                                    amount = 0
+                                    # Print session keys for debugging
+                                    print(f"DEBUG: Session keys: {list(session.keys())}")
+                                    session_transactions = session.get('transactions', [])
+                                    print(f"DEBUG: Transaction IDs in session: {[tx.get('transaction_id') for tx in session_transactions]}")
+                                    
+                                    for tx in session_transactions:
+                                        if tx.get('transaction_id') == transaction_id:
+                                            amount = float(tx.get('amount', 0))
+                                            print(f"Found transaction {transaction_id} with amount {amount} from session")
+                                            break
+                                    
+                                    if amount == 0:
+                                        print(f"WARNING: Could not find amount for transaction ID {transaction_id}")
                         else:
                             amount = 0
-                            print(f"WARNING: Could not find amount for transaction ID {transaction_id}")
+                            print(f"WARNING: Could not find transaction ID for index {i}")
                 except (ValueError, IndexError) as e:
-                    print(f"Error getting amount for transaction {transaction_id}: {str(e)}")
+                    print(f"Error getting amount for transaction {transaction_id} at index {i}: {str(e)}")
                     amount = 0
                 
-                is_expense = amount < 0
+                # Check if this is an expense - either by amount, transaction ID flag, or index flag
+                is_expense = False
+                
+                # Most reliable: check transaction ID flag
+                is_expense_tx_key = f'is_expense_{transaction_id}'
+                is_expense_tx_flag = request.form.get(is_expense_tx_key)
+                if is_expense_tx_flag and is_expense_tx_flag.lower() == 'true':
+                    is_expense = True
+                    print(f"Transaction {i} marked as expense by transaction ID flag")
+                else:
+                    # Second, check index flag
+                    is_expense_key = f'is_expense_{i}'
+                    is_expense_flag = request.form.get(is_expense_key)
+                    if is_expense_flag and is_expense_flag.lower() == 'true':
+                        is_expense = True
+                        print(f"Transaction {i} marked as expense by index flag")
+                    else:
+                        # Fallback to amount check
+                        is_expense = amount < 0
+                        if is_expense:
+                            print(f"Transaction {i} identified as expense by negative amount: {amount}")
                 
                 # Debug expense ID
                 print(f"Transaction {i}: Amount={amount}, Is Expense={is_expense}, Expense ID={expense_id}")

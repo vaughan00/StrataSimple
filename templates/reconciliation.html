@@ -129,10 +129,16 @@
                             class="{% if is_expense %}transaction-outgoing{% else %}transaction-incoming{% endif %} {% if payment.is_duplicate %}table-danger{% elif payment.suggested_property and not is_expense %}{% if payment.suggested_property.confidence > 80 %}match-confidence-high{% elif payment.suggested_property.confidence > 50 %}match-confidence-medium{% endif %}{% endif %}">
                             
                             <input type="hidden" name="transaction_id" value="{{ payment.transaction_id }}">
-                            <input type="hidden" name="date" value="{{ payment.date.strftime('%Y-%m-%d') }}">
-                            <input type="hidden" name="amount" value="{{ payment.amount }}">
-                            <input type="hidden" name="description" value="{{ payment.description }}">
-                            <input type="hidden" name="reference" value="{{ payment.reference }}">
+                            <input type="hidden" name="transaction_id_{{ loop.index0 }}" value="{{ payment.transaction_id }}">
+                            <input type="hidden" name="date_{{ loop.index0 }}" value="{{ payment.date.strftime('%Y-%m-%d') }}">
+                            <input type="hidden" name="amount_{{ loop.index0 }}" value="{{ payment.amount }}">
+                            {% if payment.amount < 0 %}
+                            <input type="hidden" name="is_expense_{{ loop.index0 }}" value="true">
+                            <input type="hidden" name="is_expense_{{ payment.transaction_id }}" value="true">
+                            <input type="hidden" name="expense_amount_{{ payment.transaction_id }}" value="{{ payment.amount|abs }}">
+                            {% endif %}
+                            <input type="hidden" name="description_{{ loop.index0 }}" value="{{ payment.description }}">
+                            <input type="hidden" name="reference_{{ loop.index0 }}" value="{{ payment.reference }}">
                             
                             <td>{{ payment.date.strftime('%d %b %Y') }}</td>
                             <td class="{% if is_expense %}text-danger{% else %}text-success{% endif %}">
