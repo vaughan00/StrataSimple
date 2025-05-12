@@ -117,6 +117,12 @@
                     <tbody>
                         {% for payment in transactions %}
                         {% set is_expense = payment.amount < 0 %}
+                        <!-- Debug payment data -->
+                        <tr class="d-none">
+                            <td colspan="6">
+                                <small>Debug: Amount={{ payment.amount }}, is_expense={{ is_expense }}</small>
+                            </td>
+                        </tr>
                         <tr data-duplicate="{{ payment.is_duplicate|lower }}" 
                             data-suggested="{{ (payment.suggested_property is not none or payment.suggested_expense is not none)|lower }}"
                             data-expense="{{ is_expense|lower }}" 

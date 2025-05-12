@@ -325,11 +325,16 @@ def suggest_fee_matches(payments):
 def analyze_payments(payments):
     """
     Complete analysis of payments: check duplicates, suggest properties and fees.
+    Also find potential expense matches for negative amounts.
     Returns analyzed payments.
     """
     payments = check_for_duplicates(payments)
     payments = suggest_property_matches(payments)
     payments = suggest_fee_matches(payments)
+    
+    # Also check for expense matches for negative transactions
+    payments = reconcile_expenses(payments)
+    
     return payments
     
 def reconcile_expenses(transactions):
@@ -350,6 +355,12 @@ def reconcile_expenses(transactions):
     for i, t in enumerate(transactions):
         print(f"Transaction {i}: Amount={t['amount']}, {'EXPENSE' if t['amount'] < 0 else 'INCOME'}")
     
+    # Get all unpaid expenses once
+    all_unpaid_expenses = Expense.query.filter_by(paid=False).all()
+    print(f"Found {len(all_unpaid_expenses)} unpaid expenses in database")
+    for e in all_unpaid_expenses:
+        print(f"  Expense: ID={e.id}, Name={e.name}, Amount=${e.amount}")
+    
     # Only process negative transactions (outgoing payments)
     for transaction in transactions:
         # Skip positive transactions (incoming payments)
@@ -359,14 +370,13 @@ def reconcile_expenses(transactions):
             
         # Convert to positive amount for comparison with expenses
         positive_amount = abs(transaction['amount'])
+        print(f"Looking for expense match for transaction: ${positive_amount}")
         
-        # Find unpaid expenses that match the amount
-        matching_expenses = Expense.query.filter_by(
-            paid=False, 
-            amount=positive_amount
-        ).all()
+        # Find unpaid expenses that match the amount (approximate matching)
+        matching_expenses = [e for e in all_unpaid_expenses if abs(e.amount - positive_amount) < 0.01]
         
         if matching_expenses:
+            print(f"Found {len(matching_expenses)} matching expenses by amount")
             # For now, just suggest the first match
             # Future enhancement: Implement fuzzy matching on description or date proximity
             transaction['suggested_expense'] = {
