@@ -8,6 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from email.utils import formataddr
 
 # Load email configuration from environment variables
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
@@ -39,6 +40,9 @@ def send_email(to_email, subject, text_content, html_content=None, cc=None, bcc=
     Returns:
         bool: True if sent successfully, False otherwise
     """
+    # Use global variables
+    global EMAIL_SENDER
+    
     if not SMTP_USERNAME or not SMTP_PASSWORD:
         print("SMTP credentials not configured. Email not sent.")
         return False
@@ -50,20 +54,26 @@ def send_email(to_email, subject, text_content, html_content=None, cc=None, bcc=
     # Create message container
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
-    msg['From'] = f"StrataHub <{EMAIL_SENDER}>"
+    
+    # Set the sender
+    sender_name = "StrataHub"
+    msg['From'] = formataddr((sender_name, EMAIL_SENDER))
+    
+    # Set recipients
     msg['To'] = ', '.join(to_email)
     
     # Add CC and BCC if provided
+    all_recipients = to_email.copy()
     if cc:
         if isinstance(cc, str):
             cc = [cc]
         msg['Cc'] = ', '.join(cc)
-        to_email.extend(cc)
+        all_recipients.extend(cc)
     
     if bcc:
         if isinstance(bcc, str):
             bcc = [bcc]
-        to_email.extend(bcc)
+        all_recipients.extend(bcc)
         
     # Add Reply-To header
     if EMAIL_REPLY_TO:
@@ -88,22 +98,20 @@ def send_email(to_email, subject, text_content, html_content=None, cc=None, bcc=
         print(f"Attempting to connect to {SMTP_SERVER}:{SMTP_PORT} with username: {SMTP_USERNAME}")
         
         # Special handling for Gmail
-        if SMTP_SERVER.lower() == "smtp.gmail.com":
+        if SMTP_SERVER and SMTP_SERVER.lower() == "smtp.gmail.com":
             try:
-                # Try with OAuth2 style auth for Gmail - newer accounts require this
-                import base64
-                from email.utils import formataddr
-                
-                # Use different authentication method required by many Gmail accounts
+                # Use standard authentication method
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 
-                # When using Gmail, ensure the sender email is the same as the authenticated account
-                # otherwise Gmail may reject the message or change the from address
-                if EMAIL_SENDER != SMTP_USERNAME and not EMAIL_SENDER.endswith('@gmail.com'):
-                    orig_sender = EMAIL_SENDER
-                    EMAIL_SENDER = SMTP_USERNAME
-                    msg.replace_header("From", formataddr(("StrataHub", EMAIL_SENDER)))
-                    print(f"Note: Changed sender from {orig_sender} to {EMAIL_SENDER} to comply with Gmail requirements")
+                # When using Gmail, the sender must be the authenticated user
+                # or Gmail will reject the message or change the from address
+                if EMAIL_SENDER != SMTP_USERNAME:
+                    print(f"Note: For Gmail, the sender {EMAIL_SENDER} should match the authenticated username {SMTP_USERNAME}")
+                    if not EMAIL_SENDER.endswith('@gmail.com'):
+                        original_sender = EMAIL_SENDER
+                        EMAIL_SENDER = SMTP_USERNAME
+                        msg.replace_header("From", formataddr((sender_name, EMAIL_SENDER)))
+                        print(f"Note: Changed sender from {original_sender} to {EMAIL_SENDER} to comply with Gmail requirements")
             
             except Exception as gmail_error:
                 print(f"Gmail authentication error: {gmail_error}")
@@ -115,7 +123,7 @@ def send_email(to_email, subject, text_content, html_content=None, cc=None, bcc=
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
         
         # Send the email
-        server.sendmail(EMAIL_SENDER, to_email, msg.as_string())
+        server.sendmail(EMAIL_SENDER, all_recipients, msg.as_string())
         server.close()
         return True
     except Exception as e:
