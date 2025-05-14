@@ -874,25 +874,64 @@ def setup():
 
 @app.route('/contacts', methods=['GET', 'POST'])
 @login_required
-@require_role('admin', 'committee')
 def contacts():
     """Page for managing contacts and owners."""
-    contacts = Contact.query.all()
-    properties = Property.query.all()
+    user_role = session.get('user_role')
+    is_admin_or_committee = user_role in ['admin', 'committee']
     
-    # Pre-fetch all property contacts to avoid the need for AJAX
-    property_contacts = {}
-    for property in properties:
-        contacts_data = []
-        for assoc in property.contact_associations:
-            contacts_data.append({
-                'contact_id': assoc.contact_id,
-                'name': assoc.contact.name,
-                'relationship_type': assoc.relationship_type,
-                'email': assoc.contact.email,
-                'phone': assoc.contact.phone
-            })
-        property_contacts[property.id] = contacts_data
+    # If user is an owner, restrict what they can see
+    if user_role == 'owner':
+        user = User.query.get(session.get('user_id'))
+        if user and user.property_id:
+            # Get contacts that are either emergency contacts or related to this property
+            property = Property.query.get(user.property_id)
+            if not property:
+                flash('Your account is not properly linked to a property. Please contact the administrator.', 'warning')
+                return redirect(url_for('index'))
+            
+            # Get all emergency contacts + contacts for this property
+            property_contacts_ids = [assoc.contact_id for assoc in property.contact_associations]
+            contacts = Contact.query.filter(
+                db.or_(
+                    Contact.emergency_contact == True,
+                    Contact.id.in_(property_contacts_ids)
+                )
+            ).all()
+            
+            # Only show this property
+            properties = [property]
+            
+            # Pre-fetch property contacts
+            property_contacts = {property.id: []}
+            for assoc in property.contact_associations:
+                property_contacts[property.id].append({
+                    'contact_id': assoc.contact_id,
+                    'name': assoc.contact.name,
+                    'relationship_type': assoc.relationship_type,
+                    'email': assoc.contact.email,
+                    'phone': assoc.contact.phone
+                })
+        else:
+            flash('Your account is not properly linked to a property. Please contact the administrator.', 'warning')
+            return redirect(url_for('index'))
+    else:
+        # Admin and committee users can see all contacts and properties
+        contacts = Contact.query.all()
+        properties = Property.query.all()
+        
+        # Pre-fetch all property contacts to avoid the need for AJAX
+        property_contacts = {}
+        for property in properties:
+            contacts_data = []
+            for assoc in property.contact_associations:
+                contacts_data.append({
+                    'contact_id': assoc.contact_id,
+                    'name': assoc.contact.name,
+                    'relationship_type': assoc.relationship_type,
+                    'email': assoc.contact.email,
+                    'phone': assoc.contact.phone
+                })
+            property_contacts[property.id] = contacts_data
     
     if request.method == 'POST':
         action = request.form.get('action')
