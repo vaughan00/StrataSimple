@@ -6,11 +6,13 @@ from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
-from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense, StrataSettings
+from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense, StrataSettings, User
 from utils import process_csv, analyze_payments, log_activity, reconcile_expenses
 import email_service
+from auth import login_required, require_role
 
 @app.route('/')
+@login_required
 def index():
     """Main dashboard showing financial status of all properties."""
     today = datetime.now()
@@ -109,6 +111,8 @@ def get_properties():
     return jsonify(properties_data)
 
 @app.route('/reconciliation', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
 def reconciliation():
     """Page for CSV upload and reconciliation."""
     if request.method == 'POST':
@@ -492,6 +496,8 @@ def reconciliation():
                           recently_confirmed=recently_confirmed)
 
 @app.route('/fees', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
 def fees():
     """Page for raising new strata fees."""
     properties = Property.query.all()
@@ -684,6 +690,8 @@ def mark_fee_paid(fee_id):
 
 # Setup routes
 @app.route('/setup', methods=['GET', 'POST'])
+@login_required
+@require_role('admin', 'committee')
 def setup():
     """Page for initial strata setup and property management."""
     properties = Property.query.all()
@@ -805,6 +813,8 @@ def setup():
     return render_template('setup.html', properties=properties)
 
 @app.route('/contacts', methods=['GET', 'POST'])
+@login_required
+@require_role('admin', 'committee')
 def contacts():
     """Page for managing contacts and owners."""
     contacts = Contact.query.all()
@@ -1040,6 +1050,7 @@ def get_property_contacts(property_id):
 
 # Property detail page
 @app.route('/property/<int:property_id>')
+@login_required
 def property_detail(property_id):
     """Detailed view of a specific property with financial history."""
     today = datetime.now()
@@ -1107,6 +1118,8 @@ def property_detail(property_id):
                           
 # Activity log page
 @app.route('/activity')
+@login_required
+@require_role('admin', 'committee')
 def activity():
     """Page showing system activity logs with filtering."""
     # Get filter parameters
@@ -1156,6 +1169,8 @@ def internal_error(error):
     
 # Expenses Routes
 @app.route('/expenses', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
 def expenses():
     """Page for managing strata expenses."""
     # POST request - create a new expense
@@ -1310,6 +1325,8 @@ def download_invoice(expense_id):
 #
 
 @app.route('/email/test', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
 def test_email():
     """Page to test email functionality and configuration."""
     # Check if SMTP is configured
