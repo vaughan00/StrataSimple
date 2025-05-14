@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from io import StringIO
 
 from app import app, db
-from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense
+from models import Property, Payment, Fee, BillingPeriod, Contact, ContactProperty, ActivityLog, Expense, StrataSettings
 from utils import process_csv, analyze_payments, log_activity, reconcile_expenses
 import email_service
 

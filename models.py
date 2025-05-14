@@ -233,3 +233,28 @@ class Expense(db.Model):
             reference_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             
         return self.due_date <= reference_date
+
+
+class StrataSettings(db.Model):
+    """Model for strata-wide settings (singleton - only one row intended)."""
+    id = db.Column(db.Integer, primary_key=True)
+    strata_name = db.Column(db.String(200), nullable=False, default="Strata Corporation")
+    address = db.Column(db.String(255), nullable=False, default="123 Main Street")
+    admin_email = db.Column(db.String(120), nullable=False, default="admin@example.com")
+    bank_account_name = db.Column(db.String(100))
+    bank_bsb = db.Column(db.String(10))
+    bank_account_number = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<StrataSettings {self.strata_name}>"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get the settings instance, creating it if it doesn't exist."""
+        settings = cls.query.first()
+        if not settings:
+            settings = cls()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
