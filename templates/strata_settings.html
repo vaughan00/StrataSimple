@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Strata Settings - StrataHub</title>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">Strata Profile Settings</h1>
+        <p class="text-muted">Configure your strata's profile information and banking details</p>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('strata_settings') }}">
+    <div class="row">
+        <!-- Strata Information -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building me-2"></i> Strata Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="strata_name" class="form-label">Strata Name</label>
+                        <input type="text" class="form-control" id="strata_name" name="strata_name" 
+                               value="{{ settings.strata_name }}" required>
+                        <div class="form-text">Official name of your strata corporation or body corporate</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Strata Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3" required>{{ settings.address }}</textarea>
+                        <div class="form-text">Physical address of the strata property</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Contact -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-envelope me-2"></i> Admin Contact</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="admin_email" class="form-label">Admin Email Address</label>
+                        <input type="email" class="form-control" id="admin_email" name="admin_email" 
+                               value="{{ settings.admin_email }}" required>
+                        <div class="form-text">Primary email address for strata correspondence</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Bank Details -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-university me-2"></i> Bank Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="bank_account_name" class="form-label">Account Name</label>
+                        <input type="text" class="form-control" id="bank_account_name" name="bank_account_name" 
+                               value="{{ settings.bank_account_name }}">
+                        <div class="form-text">Name on the strata bank account</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="bank_bsb" class="form-label">BSB</label>
+                            <input type="text" class="form-control" id="bank_bsb" name="bank_bsb" 
+                                   value="{{ settings.bank_bsb }}" pattern="[0-9]{6}" title="BSB should be 6 digits">
+                            <div class="form-text">6-digit BSB number</div>
+                        </div>
+
+                        <div class="col-md-8 mb-3">
+                            <label for="bank_account_number" class="form-label">Account Number</label>
+                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" 
+                                   value="{{ settings.bank_account_number }}">
+                            <div class="form-text">Bank account number</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Notice -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i> Security Notice</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        The strata profile information is visible to all users of the application.
+                    </p>
+                    <p>
+                        <i class="fas fa-lock text-warning me-2"></i>
+                        Bank account details are stored securely and are only used for reference purposes
+                        when generating payment instructions.
+                    </p>
+                    <p>
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                        In the future, user access controls will be implemented to restrict who can
+                        view and modify these settings.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i> Save Settings
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-times me-2"></i> Cancel
+            </a>
+        </div>
+    </div>
+</form>
+{% endblock %}
