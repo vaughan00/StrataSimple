@@ -16,62 +16,121 @@ from auth import login_required, require_role
 def index():
     """Main dashboard showing financial status of all properties."""
     today = datetime.now()
-    properties = Property.query.all()
-    total_balance = sum(prop.balance for prop in properties)
     
-    # Calculate total unpaid fees
-    total_fees = db.session.query(db.func.sum(Fee.amount)).filter_by(paid=False).scalar() or 0
+    # Get user role from session
+    user_role = session.get('user_role')
+    user_property_id = None
     
-    # Calculate total payments
-    total_paid = db.session.query(db.func.sum(Payment.amount)).scalar() or 0
-    
-    # Calculate fees due now (where due_date <= today)
-    # Create a date-only version of today for proper comparison
-    today_date_only = today.replace(hour=0, minute=0, second=0, microsecond=0)
-    due_now = db.session.query(db.func.sum(Fee.amount - Fee.paid_amount)) \
-              .filter(Fee.paid == False) \
-              .filter(Fee.due_date <= today_date_only) \
-              .scalar() or 0
+    # If user is an owner, restrict view to their property only
+    if user_role == 'owner':
+        user = User.query.get(session.get('user_id'))
+        if user and user.property_id:
+            user_property_id = user.property_id
+            properties = Property.query.filter_by(id=user_property_id).all()
+            total_balance = sum(prop.balance for prop in properties)
+            
+            # Calculate total unpaid fees for this property only
+            total_fees = db.session.query(db.func.sum(Fee.amount))\
+                .filter_by(paid=False, property_id=user_property_id).scalar() or 0
+            
+            # Calculate total payments for this property only
+            total_paid = db.session.query(db.func.sum(Payment.amount))\
+                .filter_by(property_id=user_property_id).scalar() or 0
+            
+            # Calculate fees due now for this property only
+            today_date_only = today.replace(hour=0, minute=0, second=0, microsecond=0)
+            due_now = db.session.query(db.func.sum(Fee.amount - Fee.paid_amount))\
+                .filter(Fee.paid == False, 
+                       Fee.property_id == user_property_id,
+                       Fee.due_date <= today_date_only).scalar() or 0
+            
+            # Get recent payments, fees for this property only
+            recent_payments = Payment.query.filter(
+                Payment.amount > 0, 
+                Payment.property_id == user_property_id
+            ).order_by(Payment.date.desc()).limit(5).all()
+            
+            recent_fees = Fee.query.filter_by(
+                property_id=user_property_id
+            ).order_by(Fee.date.desc()).limit(5).all()
+            
+            # For owners, don't show expenses
+            recent_expenses = []
+            total_unpaid_expenses = 0
+        else:
+            # Fallback if user has no property
+            flash('Your account is not properly linked to a property. Please contact the administrator.', 'warning')
+            return redirect(url_for('logout'))
+    else:
+        # For admin and committee users, show all properties
+        properties = Property.query.all()
+        total_balance = sum(prop.balance for prop in properties)
+        
+        # Calculate total unpaid fees
+        total_fees = db.session.query(db.func.sum(Fee.amount)).filter_by(paid=False).scalar() or 0
+        
+        # Calculate total payments
+        total_paid = db.session.query(db.func.sum(Payment.amount)).scalar() or 0
+        
+        # Calculate fees due now (where due_date <= today)
+        today_date_only = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        due_now = db.session.query(db.func.sum(Fee.amount - Fee.paid_amount)) \
+                  .filter(Fee.paid == False) \
+                  .filter(Fee.due_date <= today_date_only) \
+                  .scalar() or 0
+        
+        # Get recent payments, fees, and expenses
+        recent_payments = Payment.query.filter(Payment.amount > 0).order_by(Payment.date.desc()).limit(5).all()
+        recent_fees = Fee.query.order_by(Fee.date.desc()).limit(5).all()
+        recent_expenses = Expense.query.order_by(Expense.due_date.desc()).limit(5).all()
+        
+        # Calculate total unpaid expenses
+        unpaid_expenses = Expense.query.filter(Expense.paid == False).all()
+        total_unpaid_expenses = sum(expense.amount for expense in unpaid_expenses)
     
     # Print debugging information
-    print(f"TODAY: {today}, TODAY_DATE_ONLY: {today_date_only}")
-    overdue_fees = Fee.query.filter(Fee.paid == False, Fee.due_date <= today_date_only).all()
-    print(f"OVERDUE FEES: {len(overdue_fees)} fees are overdue")
-    for fee in overdue_fees:
-        print(f"  Fee ID: {fee.id}, Due date: {fee.due_date}, Amount: {fee.amount}, Property: {fee.property_id}")
+    print(f"TODAY: {today}, TODAY_DATE_ONLY: {today_date_only if 'today_date_only' in locals() else 'N/A'}")
+    if user_role != 'owner' or (user_role == 'owner' and user_property_id):
+        overdue_fees = Fee.query.filter(
+            Fee.paid == False, 
+            Fee.due_date <= today_date_only if 'today_date_only' in locals() else today
+        )
+        
+        if user_role == 'owner':
+            overdue_fees = overdue_fees.filter_by(property_id=user_property_id)
+            
+        overdue_fees = overdue_fees.all()
+        print(f"OVERDUE FEES: {len(overdue_fees)} fees are overdue")
+        for fee in overdue_fees:
+            print(f"  Fee ID: {fee.id}, Due date: {fee.due_date}, Amount: {fee.amount}, Property: {fee.property_id}")
     
-    # Get recent payments, fees, and expenses
-    recent_payments = Payment.query.filter(Payment.amount > 0).order_by(Payment.date.desc()).limit(5).all()
-    recent_fees = Fee.query.order_by(Fee.date.desc()).limit(5).all()
-    recent_expenses = Expense.query.order_by(Expense.due_date.desc()).limit(5).all()
-    
-    # Calculate total unpaid expenses
-    unpaid_expenses = Expense.query.filter(Expense.paid == False).all()
-    total_unpaid_expenses = sum(expense.amount for expense in unpaid_expenses)
-    
-    # Debug info
-    print("RECENT FEES INFO:")
-    for fee in recent_fees:
-        payment_total = sum(payment.amount for payment in fee.payments) if hasattr(fee, 'payments') and fee.payments else 0
-        print(f"  Fee ID: {fee.id}, Amount: {fee.amount}, Paid status: {fee.paid}, Payments: {payment_total}")
+    # Debug info for fees
+    if 'recent_fees' in locals() and recent_fees:
+        print("RECENT FEES INFO:")
+        for fee in recent_fees:
+            payment_total = sum(payment.amount for payment in fee.payments) if hasattr(fee, 'payments') and fee.payments else 0
+            print(f"  Fee ID: {fee.id}, Amount: {fee.amount}, Paid status: {fee.paid}, Payments: {payment_total}")
     
     # Debug each property's due now amount
-    print("\nPROPERTY DUE NOW AMOUNTS:")
-    for prop in properties:
-        due_now = prop.get_due_now_amount(today)
-        if due_now > 0:
-            print(f"  Property {prop.id} (Unit {prop.unit_number}): Due Now = ${due_now:.2f}")
-            # List overdue fees
-            for fee in prop.fees:
-                if not fee.paid and fee.is_overdue(today):
-                    print(f"    Fee ID: {fee.id}, Amount: ${fee.amount:.2f}, Paid Amount: ${fee.paid_amount:.2f}, Remaining: ${fee.remaining_amount:.2f}, Due Date: {fee.due_date.strftime('%Y-%m-%d')}")
+    if 'properties' in locals() and properties:
+        print("\nPROPERTY DUE NOW AMOUNTS:")
+        for prop in properties:
+            due_now_prop = prop.get_due_now_amount(today)
+            if due_now_prop > 0:
+                print(f"  Property {prop.id} (Unit {prop.unit_number}): Due Now = ${due_now_prop:.2f}")
+                # List overdue fees
+                for fee in prop.fees:
+                    if not fee.paid and fee.is_overdue(today):
+                        print(f"    Fee ID: {fee.id}, Amount: ${fee.amount:.2f}, Paid Amount: ${fee.paid_amount:.2f}, Remaining: ${fee.remaining_amount:.2f}, Due Date: {fee.due_date.strftime('%Y-%m-%d')}")
     
-    # Debug expenses
-    print("\nRECENT EXPENSES INFO:")
-    for expense in recent_expenses:
-        print(f"  Expense ID: {expense.id}, Name: {expense.name}, Amount: ${expense.amount:.2f}, Paid: {expense.paid}, Due Date: {expense.due_date.strftime('%Y-%m-%d')}")
+    # Debug expenses (only for admin/committee)
+    if user_role != 'owner' and 'recent_expenses' in locals() and recent_expenses:
+        print("\nRECENT EXPENSES INFO:")
+        for expense in recent_expenses:
+            print(f"  Expense ID: {expense.id}, Name: {expense.name}, Amount: ${expense.amount:.2f}, Paid: {expense.paid}, Due Date: {expense.due_date.strftime('%Y-%m-%d')}")
         
-    print(f"TOTAL UNPAID EXPENSES: ${total_unpaid_expenses:.2f}")
+        if 'total_unpaid_expenses' in locals():
+            print(f"TOTAL UNPAID EXPENSES: ${total_unpaid_expenses:.2f}")
     
     return render_template('dashboard.html', 
                            properties=properties, 
@@ -83,7 +142,8 @@ def index():
                            today=today,
                            recent_payments=recent_payments,
                            recent_fees=recent_fees,
-                           recent_expenses=recent_expenses)
+                           recent_expenses=recent_expenses,
+                           user_role=user_role)
 
 @app.route('/api/properties')
 def get_properties():
@@ -1055,6 +1115,16 @@ def property_detail(property_id):
     """Detailed view of a specific property with financial history."""
     today = datetime.now()
     property = Property.query.get_or_404(property_id)
+    
+    # Check permissions - owner can only see their own property
+    user_role = session.get('user_role')
+    user_id = session.get('user_id')
+    
+    if user_role == 'owner':
+        user = User.query.get(user_id)
+        if user and user.property_id != property_id:
+            flash('You do not have permission to view this property.', 'danger')
+            return redirect(url_for('index'))
     
     # Get financial data
     total_fees = sum(fee.amount for fee in property.fees)
