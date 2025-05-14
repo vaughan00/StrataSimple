@@ -91,7 +91,14 @@
                     {% if owner %}
                         <div class="card mb-2">
                             <div class="card-body py-2">
-                                <h6 class="mb-1">{{ owner.name }}</h6>
+                                <h6 class="mb-1">
+                                    {{ owner.name }}
+                                    {% if owner.emergency_contact %}
+                                    <span class="badge bg-warning ms-1" title="Emergency contact visible to all residents">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Emergency
+                                    </span>
+                                    {% endif %}
+                                </h6>
                                 <div class="small text-muted">
                                     {% if owner.email %}
                                         <div><i class="fas fa-envelope me-1"></i> {{ owner.email }}</div>
@@ -123,7 +130,14 @@
                                 <div class="card mb-2">
                                     <div class="card-body py-2">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <h6 class="mb-0">{{ contact.name }}</h6>
+                                            <h6 class="mb-0">
+                                                {{ contact.name }}
+                                                {% if contact.emergency_contact %}
+                                                <span class="badge bg-warning ms-1" title="Emergency contact visible to all residents">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>Emergency
+                                                </span>
+                                                {% endif %}
+                                            </h6>
                                             <span class="badge bg-secondary">
                                                 {% for assoc in property.contact_associations %}
                                                     {% if assoc.contact_id == contact.id %}

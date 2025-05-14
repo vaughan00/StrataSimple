@@ -15,6 +15,7 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-lg-5">
+            {% if session.user_role != 'owner' %}
             <div class="card">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0">

@@ -1239,7 +1239,13 @@ def property_detail(property_id):
     
     # Get owner and other contacts
     owner = property.get_owner()
-    contacts = [assoc.contact for assoc in property.contact_associations]
+    
+    # If user is owner, only show emergency contacts and their own property contacts
+    if session.get('user_role') == 'owner':
+        contacts = [assoc.contact for assoc in property.contact_associations if
+                   assoc.contact.emergency_contact or assoc.contact_id == owner.id]
+    else:
+        contacts = [assoc.contact for assoc in property.contact_associations]
     
     # Create timeline of activity
     timeline = []
