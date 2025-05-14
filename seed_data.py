@@ -110,5 +110,66 @@ def create_seed_data():
             owner_name = owner.name if owner else "No owner"
             print(f"Property: {prop.unit_number}, Owner: {owner_name}, Balance: ${prop.balance:.2f}")
 
+def create_admin_user(email="admin@stratahub.com"):
+    """
+    Create an admin user if one doesn't already exist.
+    This should be run after the initial seed data is created.
+    """
+    with app.app_context():
+        # Check if the admin user already exists
+        existing_admin = User.query.filter_by(email=email, role='admin').first()
+        if existing_admin:
+            print(f"Admin user {email} already exists.")
+            return
+        
+        # Create a new admin user
+        admin = User()
+        admin.email = email
+        admin.role = 'admin'
+        # Admin doesn't need to be associated with a specific property
+        
+        db.session.add(admin)
+        db.session.commit()
+        
+        print(f"Created admin user: {email}")
+        print("The admin can log in via the login page by requesting a magic link.")
+
+def create_committee_users():
+    """
+    Create committee users for each property if they don't already exist.
+    This assigns committee role to the first owner of each property.
+    """
+    with app.app_context():
+        properties = Property.query.all()
+        
+        for prop in properties:
+            # Get the owner
+            owner = prop.get_owner()
+            if not owner or not owner.email:
+                continue
+                
+            # Check if a committee user exists with this email
+            existing_user = User.query.filter_by(email=owner.email).first()
+            if existing_user:
+                if existing_user.role == 'admin':
+                    # Don't downgrade admin to committee
+                    continue
+                existing_user.role = 'committee'
+                db.session.add(existing_user)
+                print(f"Updated user {owner.email} to committee role.")
+            else:
+                # Create new committee user
+                committee = User()
+                committee.email = owner.email
+                committee.role = 'committee'
+                committee.property_id = prop.id
+                
+                db.session.add(committee)
+                print(f"Created committee user: {owner.email} for property {prop.unit_number}")
+        
+        db.session.commit()
+
 if __name__ == "__main__":
     create_seed_data()
+    create_admin_user()
+    create_committee_users()

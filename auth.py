@@ -186,7 +186,7 @@ def login_confirm():
     """Confirmation page after sending magic link."""
     return render_template('login_confirm.html')
 
-@app.route('/verify-login')
+@app.route('/verify_login')
 def verify_login():
     """
     Verifies the magic link token and logs in the user.
