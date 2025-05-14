@@ -1105,7 +1105,28 @@ def contacts():
 @app.route('/api/contacts')
 def get_contacts():
     """API endpoint to get all contacts data."""
-    contacts = Contact.query.all()
+    # Check if user is owner - restrict to only their contacts and emergency contacts
+    if session.get('user_role') == 'owner':
+        user = User.query.get(session.get('user_id'))
+        if user and user.property_id:
+            property = Property.query.get(user.property_id)
+            if property:
+                # Get contact IDs related to this property
+                property_contact_ids = [assoc.contact_id for assoc in property.contact_associations]
+                # Filter contacts to only include those related to this property or emergency contacts
+                contacts = Contact.query.filter(
+                    db.or_(
+                        Contact.id.in_(property_contact_ids),
+                        Contact.emergency_contact == True
+                    )
+                ).all()
+            else:
+                return jsonify([])
+        else:
+            return jsonify([])
+    else:
+        contacts = Contact.query.all()
+    
     contacts_data = []
     
     for contact in contacts:
@@ -1118,6 +1139,7 @@ def get_contacts():
             'email': contact.email,
             'phone': contact.phone,
             'is_owner': contact.is_owner,
+            'emergency_contact': contact.emergency_contact,
             'owned_properties': owned_properties,
             'managed_properties': managed_properties,
             'notes': contact.notes
@@ -1130,6 +1152,18 @@ def get_contact(contact_id):
     """API endpoint to get a specific contact by ID."""
     contact = Contact.query.get_or_404(contact_id)
     
+    # Check permissions for owners - they can only view their own contacts
+    # or emergency contacts
+    if session.get('user_role') == 'owner':
+        user = User.query.get(session.get('user_id'))
+        if user and user.property_id:
+            property = Property.query.get(user.property_id)
+            if property:
+                # Get contact IDs related to this property
+                property_contact_ids = [assoc.contact_id for assoc in property.contact_associations]
+                if contact_id not in property_contact_ids and not contact.emergency_contact:
+                    return jsonify({"error": "Access denied"}), 403
+    
     owned_properties = [p.unit_number for p in contact.owned_properties]
     managed_properties = [p.unit_number for p in contact.managed_properties]
     
@@ -1139,6 +1173,7 @@ def get_contact(contact_id):
         'email': contact.email,
         'phone': contact.phone,
         'is_owner': contact.is_owner,
+        'emergency_contact': contact.emergency_contact,
         'notes': contact.notes,
         'owned_properties': owned_properties,
         'managed_properties': managed_properties
@@ -1149,6 +1184,12 @@ def get_property_contacts(property_id):
     """API endpoint to get contacts for a specific property."""
     property = Property.query.get_or_404(property_id)
     
+    # Check permissions for owners - they can only view their own property contacts
+    if session.get('user_role') == 'owner':
+        user = User.query.get(session.get('user_id'))
+        if user and user.property_id and user.property_id != property_id:
+            return jsonify({"error": "Access denied"}), 403
+    
     contacts_data = []
     for assoc in property.contact_associations:
         contacts_data.append({
@@ -1156,7 +1197,8 @@ def get_property_contacts(property_id):
             'name': assoc.contact.name,
             'relationship_type': assoc.relationship_type,
             'email': assoc.contact.email,
-            'phone': assoc.contact.phone
+            'phone': assoc.contact.phone,
+            'emergency_contact': assoc.contact.emergency_contact
         })
     
     return jsonify(contacts_data)
