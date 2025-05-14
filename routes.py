@@ -942,6 +942,7 @@ def contacts():
             email = request.form.get('email')
             phone = request.form.get('phone')
             is_owner = request.form.get('is_owner') == 'on'
+            emergency_contact = request.form.get('emergency_contact') == 'on'
             notes = request.form.get('notes')
             
             new_contact = Contact(
@@ -949,6 +950,7 @@ def contacts():
                 email=email,
                 phone=phone,
                 is_owner=is_owner,
+                emergency_contact=emergency_contact,
                 notes=notes
             )
             db.session.add(new_contact)
@@ -970,10 +972,22 @@ def contacts():
             contact_id = request.form.get('contact_id')
             contact = Contact.query.get_or_404(contact_id)
             
+            # Check permission for owners - they can only edit their own contacts
+            if session.get('user_role') == 'owner':
+                user = User.query.get(session.get('user_id'))
+                if user and user.property_id:
+                    property = Property.query.get(user.property_id)
+                    if property:
+                        property_contact_ids = [assoc.contact_id for assoc in property.contact_associations]
+                        if int(contact_id) not in property_contact_ids:
+                            flash('You do not have permission to edit this contact.', 'danger')
+                            return redirect(url_for('contacts'))
+            
             contact.name = request.form.get('name')
             contact.email = request.form.get('email')
             contact.phone = request.form.get('phone')
             contact.is_owner = request.form.get('is_owner') == 'on'
+            contact.emergency_contact = request.form.get('emergency_contact') == 'on'
             contact.notes = request.form.get('notes')
             
             db.session.commit()
