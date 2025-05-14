@@ -27,52 +27,114 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <!-- Main Navigation - Adapt based on role -->
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
                             <i class="fas fa-chart-line me-1"></i> Dashboard
                         </a>
                     </li>
+                    
+                    {% if not user.user_id or user.user_role in ['admin', 'committee'] %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/setup' %}active{% endif %}" href="{{ url_for('setup') }}">
                             <i class="fas fa-building me-1"></i> Properties
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role in ['admin', 'committee'] %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/contacts' %}active{% endif %}" href="{{ url_for('contacts') }}">
                             <i class="fas fa-address-book me-1"></i> Contacts
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/reconciliation' %}active{% endif %}" href="{{ url_for('reconciliation') }}">
                             <i class="fas fa-file-import me-1"></i> Reconciliation
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/fees' %}active{% endif %}" href="{{ url_for('fees') }}">
                             <i class="fas fa-money-bill-wave me-1"></i> Manage Fees
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/expenses' %}active{% endif %}" href="{{ url_for('expenses') }}">
                             <i class="fas fa-file-invoice-dollar me-1"></i> Manage Expenses
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role in ['admin', 'committee'] %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/activity' %}active{% endif %}" href="{{ url_for('activity') }}">
                             <i class="fas fa-history me-1"></i> Activity Log
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/email/test' %}active{% endif %}" href="{{ url_for('test_email') }}">
                             <i class="fas fa-envelope me-1"></i> Email Settings
                         </a>
                     </li>
+                    {% endif %}
+                    
+                    {% if not user.user_id or user.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/settings' %}active{% endif %}" href="{{ url_for('strata_settings') }}">
                             <i class="fas fa-cog me-1"></i> Strata Settings
                         </a>
                     </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- User Account Menu -->
+                <ul class="navbar-nav">
+                    {% if user.user_id %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" 
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-1"></i>
+                                {% if user.user_property %}
+                                    Unit {{ user.user_property }}
+                                {% else %}
+                                    {{ user.user_email }}
+                                {% endif %}
+                                <span class="badge bg-secondary">{{ user.user_role | title }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                <li>
+                                    <span class="dropdown-item-text text-muted small">
+                                        <i class="fas fa-envelope me-1"></i> {{ user.user_email }}
+                                    </span>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i> Login
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>

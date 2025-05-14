@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Login - StrataHub</title>
+<style>
+    .login-container {
+        max-width: 500px;
+        margin: 2rem auto;
+    }
+    .property-selector {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h4 mb-0">
+                <i class="fas fa-key me-2"></i>Login to StrataHub
+            </h2>
+        </div>
+        <div class="card-body">
+            {% if not property_data %}
+                <!-- Step 1: Select Property -->
+                <h5 class="mb-3">Please select your property:</h5>
+                <form method="post" action="{{ url_for('login') }}">
+                    <div class="property-selector mb-4">
+                        {% if properties %}
+                            {% for property in properties %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="property_id" 
+                                           id="property_{{ property.id }}" value="{{ property.id }}" required>
+                                    <label class="form-check-label" for="property_{{ property.id }}">
+                                        <strong>Unit {{ property.unit_number }}</strong>
+                                        {% if property.description %}
+                                            <span class="text-muted">({{ property.description }})</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                No properties found in the system.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" {% if not properties %}disabled{% endif %}>
+                            <i class="fas fa-arrow-right me-2"></i>Continue
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <!-- Step 2: Confirm Email and Send Login Link -->
+                <h5 class="mb-3">Confirm your details:</h5>
+                <div class="mb-4">
+                    <div class="alert alert-info">
+                        <p class="mb-1"><strong>Property:</strong> Unit {{ property_data.unit_number }}</p>
+                        <p class="mb-1"><strong>Owner:</strong> {{ property_data.owner_name }}</p>
+                        <p class="mb-0">
+                            <strong>Email:</strong> 
+                            <span id="masked-email">{{ property_data.masked_email }}</span>
+                        </p>
+                    </div>
+                </div>
+                
+                <form method="post" action="{{ url_for('login') }}">
+                    <input type="hidden" name="property_id" value="{{ property_data.id }}">
+                    <input type="hidden" name="email" value="{{ property_data.email }}">
+                    <input type="hidden" name="send_link" value="true">
+                    
+                    <p class="text-center mb-3">
+                        We'll send a secure login link to the email address above.
+                    </p>
+                    
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-envelope me-2"></i>Send Login Link
+                        </button>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back
+                        </a>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mt-3 text-center">
+        <p class="small text-muted">
+            If your unit is not listed or you're having trouble logging in,<br>
+            please contact your strata manager.
+        </p>
+    </div>
+</div>
+{% endblock %}

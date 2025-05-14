@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 from app import db
 
 class Contact(db.Model):
@@ -258,3 +259,49 @@ class StrataSettings(db.Model):
             db.session.add(settings)
             db.session.commit()
         return settings
+
+
+class User(db.Model):
+    """Model for user authentication and role-based access control."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    role = db.Column(db.String(20), default='owner')  # 'owner', 'committee', 'admin'
+    token = db.Column(db.String(100))
+    token_expiry = db.Column(db.DateTime)
+    property_id = db.Column(db.Integer, db.ForeignKey('property.id'))
+    last_login = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Define relationship to property
+    property = db.relationship('Property', backref='users')
+    
+    def __repr__(self):
+        return f"<User {self.email}>"
+    
+    def generate_login_token(self, expiry_minutes=30):
+        """Generate a secure token for magic link login."""
+        self.token = secrets.token_urlsafe(32)
+        self.token_expiry = datetime.utcnow() + timedelta(minutes=expiry_minutes)
+        return self.token
+    
+    def is_token_valid(self, token):
+        """Check if the provided token is valid and not expired."""
+        if not self.token or not self.token_expiry:
+            return False
+        
+        if self.token != token:
+            return False
+            
+        if datetime.utcnow() > self.token_expiry:
+            return False
+            
+        return True
+    
+    def invalidate_token(self):
+        """Invalidate the current token after use."""
+        self.token = None
+        self.token_expiry = None
+    
+    def update_last_login(self):
+        """Update the last login timestamp."""
+        self.last_login = datetime.utcnow()

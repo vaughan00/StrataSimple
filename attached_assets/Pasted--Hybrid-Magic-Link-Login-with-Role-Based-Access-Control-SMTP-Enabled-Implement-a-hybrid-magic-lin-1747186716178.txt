@@ -1,0 +1,103 @@
+ Hybrid Magic Link Login with Role-Based Access Control (SMTP Enabled)
+
+Implement a hybrid magic link login system with role-based access control.
+SMTP email delivery is already configured—use it to send secure, time-limited login links.
+Users will log in by selecting their unit, confirming a masked email, and receiving a magic link.
+Each user has a role that defines their access level.
+
+⸻
+
+✅ 1. User Model
+
+Create model something like:
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String, unique=True, nullable=False)
+    role = db.Column(db.String, default='owner')  # 'owner', 'committee', 'admin'
+    token = db.Column(db.String)
+    token_expiry = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+⸻
+
+✅ 2. Hybrid Login Flow (Unit + Email)
+	•	User selects their unit on the login page
+	•	App retrieves the registered email for that unit
+	•	Display a masked version of the email:
+
+We'll send a login link to: f*******t@g****.com
+[Send Login Link]
+
+
+	•	On confirmation:
+	•	Generate a secure token, store it with an expiry
+	•	Send the login link via SMTP:
+
+https://yourapp.com/auth/verify?token=abc123
+
+
+	•	When the user clicks the link:
+	•	Validate the token
+	•	Log the user in by saving user_id, user_email, and user_role in the session
+
+⸻
+
+✅ 3. Email Obfuscation Function, something like:
+
+def obfuscate_email(email):
+    local, domain = email.split('@')
+    masked_local = local[0] + '*' * (len(local) - 2) + local[-1]
+    masked_domain = domain[0] + '*' * (len(domain.split('.')[0]) - 1) + domain[domain.find('.'):]
+    return f\"{masked_local}@{masked_domain}\"
+
+
+⸻
+
+✅ 4. Role-Based Access Control something like:
+
+Implement a @require_role() decorator:
+
+def require_role(*roles):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if session.get('user_role') not in roles:
+                return abort(403)
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+Use it to protect routes like /settings, /fees, etc.
+
+⸻
+
+✅ 5. User Roles and Permissions
+
+Feature / Page	Owner	Committee	Admin
+View own unit details	✅	✅	✅
+View all properties	❌	✅	✅
+View all fees & expenses	❌	✅	✅
+View all contacts	❌	✅	✅
+Manage fees & expenses	❌	❌	✅
+Manage properties & contacts	❌	❌	✅
+Run reconciliation	❌	❌	✅
+Access audit logs	❌	✅	✅
+
+
+⸻
+
+✅ 6. Logout
+
+Create a route that clears the session and redirects the user.
+
+⸻
+
+🟢 7
+	•	Token revocation after use
+	•	Support multiple users per property
+	•	Login activity logs
+	•	“Resend link” flow
+
+⸻
