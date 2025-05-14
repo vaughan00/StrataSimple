@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timedelta
 
 from app import app, db
-from models import Property, Contact, ContactProperty, Fee, BillingPeriod
+from models import Property, Contact, ContactProperty, Fee, BillingPeriod, User
 
 def create_seed_data():
     """Create seed data for testing."""

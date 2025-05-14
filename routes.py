@@ -1447,6 +1447,8 @@ def test_template():
 #
 
 @app.route('/settings', methods=['GET', 'POST'])
+@login_required
+@require_role('admin')
 def strata_settings():
     """Page for managing strata-wide settings."""
     # Get or create settings
