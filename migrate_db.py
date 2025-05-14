@@ -32,6 +32,14 @@ def migrate_database():
             
             contacts = []
             for contact in Contact.query.all():
+                # Handle emergency_contact field
+                emergency_contact = False
+                # Try to access emergency_contact but handle the case where it doesn't exist yet
+                try:
+                    emergency_contact = contact.emergency_contact
+                except:
+                    pass
+                
                 contacts.append({
                     'id': contact.id,
                     'name': contact.name,
@@ -39,6 +47,7 @@ def migrate_database():
                     'phone': contact.phone,
                     'is_owner': contact.is_owner,
                     'notes': contact.notes,
+                    'emergency_contact': emergency_contact,
                     'created_at': contact.created_at.isoformat() if contact.created_at else None
                 })
             
@@ -130,6 +139,18 @@ def migrate_database():
                     f.write(content)
                 
                 print("Updated Fee model with fee_type field.")
+                
+            # Check if emergency_contact field is already in the Contact model
+            if 'emergency_contact = db.Column' not in content:
+                content = content.replace(
+                    'notes = db.Column(db.Text)\n    created_at',
+                    'notes = db.Column(db.Text)\n    emergency_contact = db.Column(db.Boolean, default=False)  # Visible to all residents if True\n    created_at'
+                )
+                
+                with open('models.py', 'w') as f:
+                    f.write(content)
+                
+                print("Updated Contact model with emergency_contact field.")
             
             # Recreate tables
             db.create_all()
@@ -160,7 +181,8 @@ def migrate_database():
                     email=contact_data['email'],
                     phone=contact_data['phone'],
                     is_owner=contact_data['is_owner'],
-                    notes=contact_data['notes']
+                    notes=contact_data['notes'],
+                    emergency_contact=contact_data.get('emergency_contact', False)  # Include emergency_contact field
                 )
                 db.session.add(contact)
             
