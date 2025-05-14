@@ -74,7 +74,9 @@
                     </form>
                 </div>
             </div>
+            {% endif %}
             
+            {% if session.user_role != 'owner' %}
             <div class="card mt-4">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0">
@@ -123,6 +125,7 @@
                     </form>
                 </div>
             </div>
+            {% endif %}
         </div>
         
         <div class="col-lg-7">
@@ -173,6 +176,7 @@
                 </div>
             </div>
             
+            {% if session.user_role != 'owner' %}
             <div class="card mt-4">
                 <div class="card-header bg-dark text-white">
                     <h5 class="mb-0"><i class="fas fa-building me-2"></i>Property Relationships</h5>
@@ -245,6 +249,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
