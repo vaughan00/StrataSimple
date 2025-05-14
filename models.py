@@ -10,6 +10,7 @@ class Contact(db.Model):
     phone = db.Column(db.String(20))
     is_owner = db.Column(db.Boolean, default=True)
     notes = db.Column(db.Text)
+    emergency_contact = db.Column(db.Boolean, default=False)  # Visible to all residents if True
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships with properties through association model
