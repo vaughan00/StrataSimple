@@ -1,0 +1,188 @@
+
+=== DATABASE SCHEMA ===
+
+Found 10 models:
+
+### ActivityLog ###
+Table: activity_log
+Description: Model for tracking system activities and events.
+
+Columns:
+  - description: VARCHAR(250) (NOT NULL)
+  - event_type: VARCHAR(50) (NOT NULL)
+  - id: INTEGER (NOT NULL) DEFAULT nextval('activity_log_id_seq'::regclass)
+  - related_object_id: INTEGER
+  - related_object_type: VARCHAR(50)
+  - timestamp: TIMESTAMP (NOT NULL)
+
+Relationships:
+
+
+### BillingPeriod ###
+Table: billing_period
+Description: Model for billing periods.
+
+Columns:
+  - created_at: TIMESTAMP
+  - description: VARCHAR(200)
+  - end_date: TIMESTAMP (NOT NULL)
+  - id: INTEGER (NOT NULL) DEFAULT nextval('billing_period_id_seq'::regclass)
+  - name: VARCHAR(50) (NOT NULL)
+  - start_date: TIMESTAMP (NOT NULL)
+  - total_amount: DOUBLE PRECISION (NOT NULL)
+
+Relationships:
+
+
+### Contact ###
+Table: contact
+Description: Model for owners and contacts.
+
+Columns:
+  - created_at: TIMESTAMP
+  - email: VARCHAR(120)
+  - emergency_contact: BOOLEAN DEFAULT false
+  - id: INTEGER (NOT NULL) DEFAULT nextval('contact_id_seq'::regclass)
+  - is_owner: BOOLEAN
+  - name: VARCHAR(100) (NOT NULL)
+  - notes: TEXT
+  - phone: VARCHAR(20)
+
+Relationships:
+  - property_associations -> contact_property
+
+
+### ContactProperty ###
+Table: contact_property
+Description: Model for the relationship between contacts and properties.
+
+Columns:
+  - contact_id: INTEGER (NOT NULL)
+  - created_at: TIMESTAMP
+  - property_id: INTEGER (NOT NULL)
+  - relationship_type: VARCHAR(50) (NOT NULL)
+
+Relationships:
+  - contact -> contact
+  - property -> property
+
+
+### Expense ###
+Table: expense
+Description: Model for strata expenses/outgoing payments.
+
+Columns:
+  - amount: DOUBLE PRECISION (NOT NULL)
+  - created_at: TIMESTAMP
+  - description: VARCHAR(200)
+  - due_date: TIMESTAMP (NOT NULL)
+  - id: INTEGER (NOT NULL) DEFAULT nextval('expense_id_seq'::regclass)
+  - invoice_filename: VARCHAR(255)
+  - matched_transaction_id: VARCHAR(100)
+  - name: VARCHAR(100) (NOT NULL)
+  - paid: BOOLEAN
+  - paid_date: TIMESTAMP
+
+Relationships:
+
+
+### Fee ###
+Table: fee
+Description: Model for strata fees charged to properties.
+
+Columns:
+  - amount: DOUBLE PRECISION (NOT NULL)
+  - created_at: TIMESTAMP
+  - date: TIMESTAMP (NOT NULL)
+  - description: VARCHAR(200)
+  - due_date: TIMESTAMP (NOT NULL)
+  - fee_type: VARCHAR(50) DEFAULT 'billing_period'::character varying
+  - id: INTEGER (NOT NULL) DEFAULT nextval('fee_id_seq'::regclass)
+  - paid: BOOLEAN
+  - paid_amount: DOUBLE PRECISION DEFAULT 0.0
+  - period: VARCHAR(50)
+  - property_id: INTEGER (NOT NULL)
+
+Relationships:
+  - property -> property
+  - payments -> payment
+
+
+### Payment ###
+Table: payment
+Description: Model for payments made by property owners.
+
+Columns:
+  - amount: DOUBLE PRECISION (NOT NULL)
+  - confirmed: BOOLEAN
+  - created_at: TIMESTAMP
+  - date: TIMESTAMP (NOT NULL)
+  - description: VARCHAR(200)
+  - fee_id: INTEGER
+  - id: INTEGER (NOT NULL) DEFAULT nextval('payment_id_seq'::regclass)
+  - is_duplicate: BOOLEAN
+  - property_id: INTEGER
+  - reconciled: BOOLEAN
+  - reference: VARCHAR(100)
+  - transaction_id: VARCHAR(100)
+
+Relationships:
+  - fee -> fee
+  - property -> property
+
+
+### Property ###
+Table: property
+Description: Model for individual properties (units) in the strata.
+
+Columns:
+  - balance: DOUBLE PRECISION
+  - created_at: TIMESTAMP
+  - description: VARCHAR(200)
+  - entitlement: DOUBLE PRECISION
+  - id: INTEGER (NOT NULL) DEFAULT nextval('property_id_seq'::regclass)
+  - unit_number: VARCHAR(10) (NOT NULL)
+
+Relationships:
+  - payments -> payment
+  - fees -> fee
+  - contact_associations -> contact_property
+  - users -> user
+
+
+### StrataSettings ###
+Table: strata_settings
+Description: Model for strata-wide settings (singleton - only one row intended).
+
+Columns:
+  - address: VARCHAR(255) (NOT NULL)
+  - admin_email: VARCHAR(120) (NOT NULL)
+  - bank_account_name: VARCHAR(100)
+  - bank_account_number: VARCHAR(20)
+  - bank_bsb: VARCHAR(10)
+  - created_at: TIMESTAMP
+  - id: INTEGER (NOT NULL) DEFAULT nextval('strata_settings_id_seq'::regclass)
+  - strata_name: VARCHAR(200) (NOT NULL)
+
+Relationships:
+
+
+### User ###
+Table: user
+Description: Model for user authentication and role-based access control.
+
+Columns:
+  - created_at: TIMESTAMP
+  - email: VARCHAR(120) (NOT NULL)
+  - id: INTEGER (NOT NULL) DEFAULT nextval('user_id_seq'::regclass)
+  - last_login: TIMESTAMP
+  - property_id: INTEGER
+  - role: VARCHAR(20)
+  - token: VARCHAR(100)
+  - token_expiry: TIMESTAMP
+
+Relationships:
+  - property -> property
+
+
+=== END OF SCHEMA ===
