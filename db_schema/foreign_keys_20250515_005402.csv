@@ -1,0 +1,7 @@
+schema,constraint_name,table_name,column_name,foreign_schema,foreign_table,foreign_column
+public,contact_property_contact_id_fkey,contact_property,contact_id,public,contact,id
+public,contact_property_property_id_fkey,contact_property,property_id,public,property,id
+public,fee_property_id_fkey,fee,property_id,public,property,id
+public,payment_fee_id_fkey,payment,fee_id,public,fee,id
+public,payment_property_id_fkey,payment,property_id,public,property,id
+public,user_property_id_fkey,user,property_id,public,property,id
