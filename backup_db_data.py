@@ -6,7 +6,7 @@ This creates a SQL file with INSERT statements for all data.
 import os
 import sys
 import datetime
-from sqlalchemy import create_engine, inspect, MetaData, Table
+from sqlalchemy import create_engine, inspect, MetaData, Table, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
 
@@ -50,7 +50,8 @@ def backup_data():
             
             # Get the number of rows
             with engine.connect() as conn:
-                count = conn.execute(table.count()).scalar()
+                result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                count = result.scalar()
             
             if count == 0:
                 continue  # Skip empty tables
@@ -61,7 +62,7 @@ def backup_data():
             
             # Get all rows
             with engine.connect() as conn:
-                rows = conn.execute(table.select()).fetchall()
+                rows = conn.execute(text(f"SELECT * FROM {table_name}")).fetchall()
                 
                 for row in rows:
                     # Create column list
