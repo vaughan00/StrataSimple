@@ -60,19 +60,24 @@ def backup_data():
             f.write(f"-- Table: {table_name}\n")
             f.write(f"-- {count} rows\n")
             
+            # Get column names
+            columns = [column.name for column in table.columns]
+            column_list = ", ".join(columns)
+            
             # Get all rows
             with engine.connect() as conn:
-                rows = conn.execute(text(f"SELECT * FROM {table_name}")).fetchall()
+                # Fetch column names from result proxy
+                result = conn.execute(text(f"SELECT * FROM {table_name}"))
+                column_names = result.keys()
+                rows = result.fetchall()
                 
                 for row in rows:
-                    # Create column list
-                    columns = [column.name for column in table.columns]
-                    column_list = ", ".join(columns)
-                    
                     # Create value list with proper SQL escaping
                     values = []
-                    for i, column in enumerate(table.columns):
-                        value = row[i]
+                    row_dict = dict(zip(column_names, row))
+                    
+                    for column_name in columns:
+                        value = row_dict.get(column_name)
                         if value is None:
                             values.append("NULL")
                         elif isinstance(value, (int, float)):
